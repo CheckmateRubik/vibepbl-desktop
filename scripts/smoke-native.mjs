@@ -97,14 +97,14 @@ try {
     is_act1_completed: originalSession.isAct1Completed
   };
   const samples = {
-    title: 'Native release smoke test',
+    title: 'ทดสอบระบบ VibePBL ภาษาไทย',
     theme: 'midnight',
-    case_text: '<p>Representative clinical narrative</p>',
+    case_text: '<p><strong>ผู้ป่วยมีไข้</strong> และหายใจลำบาก</p><img src="x" onerror="globalThis.__vibepblXss=1"><script>globalThis.__vibepblXss=1</script>',
     case_images: smokeImage ? [{ id:'image-smoke', filename:'image-smoke.png', originalName:'Smoke test image.png', localPath:smokeImage, pins:[{ id:'pin-smoke', x:50, y:50, label:'Representative finding' }] }] : [],
-    terms: [{ id:'term-smoke', name:'Dyspnea', meaning:'Subjective breathing discomfort' }],
-    timeline: [{ id:'time-smoke', content:'Symptoms progressed', durationText:'2 weeks prior', colorTheme:{ name:'Slate', bg:'#f1f5f9', text:'#334155', border:'#94a3b8' } }],
-    problems: [{ id:'prob-smoke', text:'Progressive dyspnea', status:'none', hypotheses:[{ id:'hyp-smoke', text:'Pulmonary infection', status:'none', validation:'wrong', checked:false }] }],
-    objectives: [{ id:'lo-smoke', text:'Compare causes of dyspnea', linkedProblemIds:['prob-smoke'] }],
+    terms: [{ id:'term-smoke', name:'หายใจลำบาก', meaning:'อาการไม่สบายขณะหายใจ' }],
+    timeline: [{ id:'time-smoke', content:'อาการแย่ลง', durationText:'2 สัปดาห์ก่อน', colorTheme:{ name:'Slate', bg:'#f1f5f9', text:'#334155', border:'#94a3b8' } }],
+    problems: [{ id:'prob-smoke', text:'หายใจลำบากมากขึ้น', status:'none', hypotheses:[{ id:'hyp-smoke', text:'การติดเชื้อในปอด', status:'none', validation:'wrong', checked:false }] }],
+    objectives: [{ id:'lo-smoke', text:'เปรียบเทียบสาเหตุของอาการหายใจลำบาก', linkedProblemIds:['prob-smoke'] }],
     presenter_assignments: { 'lo-smoke_prob-smoke': testMemberName },
     is_act1_completed: false
   };
@@ -113,7 +113,7 @@ try {
       await evaluate(client, invokeExpression('save_session_field', { fieldName, jsonValue:JSON.stringify(value) }));
     }
     const saved = await evaluate(client, invokeExpression('get_session'));
-    if (saved.title !== samples.title || saved.terms[0]?.name !== 'Dyspnea' || saved.problems[0]?.hypotheses[0]?.validation !== 'wrong') {
+    if (saved.title !== samples.title || saved.terms[0]?.name !== 'หายใจลำบาก' || saved.problems[0]?.hypotheses[0]?.validation !== 'wrong') {
       throw new Error(`Session round-trip failed: ${JSON.stringify(saved)}`);
     }
     const printPayload = await evaluate(client, invokeExpression('get_print_act1_data'));
@@ -139,9 +139,11 @@ try {
       routeResults[route] = await evaluate(client, `({ heading:document.querySelector('#page h2')?.textContent, text:document.querySelector('#page')?.innerText })`);
       if (routeResults[route].heading !== expectedHeading) throw new Error(`Route ${route} rendered ${routeResults[route].heading} instead of ${expectedHeading}.`);
     }
-    if (!routeResults.terms.text.includes('Dyspnea') || !routeResults.timeline.text.includes('Symptoms progressed')) throw new Error('Act 1 representative data did not render.');
+    if (!routeResults.case.text.includes('ผู้ป่วยมีไข้') || !routeResults.terms.text.includes('หายใจลำบาก') || !routeResults.timeline.text.includes('อาการแย่ลง')) throw new Error('Thai Act 1 data did not render.');
+    const injectionState = await evaluate(client, `({ marker:Boolean(globalThis.__vibepblXss), scripts:document.querySelectorAll('#case-editor script').length, images:document.querySelectorAll('#case-editor img').length, unsafeAttributes:document.querySelectorAll('#case-editor [onerror]').length })`);
+    if (injectionState.marker || injectionState.scripts || injectionState.images || injectionState.unsafeAttributes) throw new Error(`Stored rich-text injection was not sanitized: ${JSON.stringify(injectionState)}`);
     if (!routeResults.problems.text.includes('Wrong') || !routeResults.verification.text.includes('Wrong')) throw new Error('Act 1/Act 2 hypothesis status was not synchronized.');
-    if (!routeResults.randomizer.text.includes(testMemberName) || !routeResults.objectives.text.includes('Compare causes of dyspnea')) throw new Error('Act 2 assignment or objective mapping did not render.');
+    if (!routeResults.randomizer.text.includes(testMemberName) || !routeResults.objectives.text.includes('เปรียบเทียบสาเหตุของอาการหายใจลำบาก')) throw new Error('Thai Act 2 assignment or objective mapping did not render.');
     if (smokeImage) {
       await evaluate(client, `location.hash = '#/case'`);
       let imageState;
@@ -151,6 +153,22 @@ try {
         await delay(100);
       }
       if (!imageState?.complete || imageState.naturalWidth < 1 || imageState.alt !== 'Smoke test image.png') throw new Error(`Private clinical image did not render: ${JSON.stringify(imageState)}`);
+    }
+
+    for (let printAttempt = 0; printAttempt < 2; printAttempt++) {
+      await evaluate(client, `document.getElementById('quick-print').click()`);
+      let printState;
+      for (let attempt = 0; attempt < 40; attempt++) {
+        printState = await evaluate(client, `({ hash:location.hash, title:document.title, heading:document.querySelector('.print-report h1')?.textContent, reportText:document.querySelector('.print-report')?.innerText, unsafeContent:Boolean(document.querySelector('.print-report script,.print-report img[src="x"],.print-report [onerror]')), hasPrintButton:Boolean(document.querySelector('#print-now')), hasBackButton:Boolean(document.querySelector('#back-from-print')) })`);
+        if (printState.hash === '#/print' && printState.heading) break;
+        await delay(100);
+      }
+      if (printState.hash !== '#/print' || printState.title !== 'VibePBL Desktop' || printState.heading !== samples.title || !printState.reportText.includes('ผู้ป่วยมีไข้') || printState.unsafeContent || !printState.hasPrintButton || !printState.hasBackButton) throw new Error(`Print preview failed: ${JSON.stringify(printState)}`);
+      await evaluate(client, `history.back()`);
+      for (let attempt = 0; attempt < 40; attempt++) {
+        if (await evaluate(client, `location.hash !== '#/print' && Boolean(document.getElementById('quick-print'))`)) break;
+        await delay(100);
+      }
     }
 
     await evaluate(client, invokeExpression('remove_member', { id:testMember.id }));

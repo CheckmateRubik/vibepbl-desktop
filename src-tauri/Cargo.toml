@@ -1,6 +1,6 @@
 [package]
 name = "vibepbl-desktop"
-version = "1.0.2"
+version = "1.0.3"
 description = "Offline secretary workspace for medical PBL sessions"
 authors = ["CheckmateRubik"]
 license = "MIT"

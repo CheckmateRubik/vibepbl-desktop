@@ -12,7 +12,7 @@ export function renderTimeline(ctx) {
   document.getElementById('page').innerHTML = `
     ${pageHeader('Clinical timeline', 'Arrange symptoms, investigations, and changes in chronological order.', `<button id="add-event" class="button button-primary" ${locked ? 'disabled' : ''}>＋ Add event</button>`)}
     ${locked ? '<div class="lock-banner">🔒 <strong>Act 1 is locked</strong></div>' : ''}
-    <section class="card"><div class="timeline-list">${ctx.session.timeline.length ? ctx.session.timeline.map(event => `<article class="timeline-card" draggable="${!locked}" data-event="${event.id}" style="background:${event.colorTheme.bg};color:${event.colorTheme.text};border-color:${event.colorTheme.border}"><div><span class="drag-handle">⠿</span> <span class="timeline-duration">${esc(event.durationText)}</span></div><div>${esc(event.content)}</div><div class="item-actions"><button class="button button-ghost" data-edit="${event.id}" ${locked ? 'disabled' : ''}>✎</button><button class="button button-ghost" data-delete="${event.id}" ${locked ? 'disabled' : ''}>🗑</button></div></article>`).join('') : emptyState('↝', 'No timeline events yet', 'Start with onset, then add important changes through the current state.')}</div></section>`;
+    <section class="card"><div class="timeline-list">${ctx.session.timeline.length ? ctx.session.timeline.map(event => `<article class="timeline-card" draggable="${!locked}" data-event="${esc(event.id)}" style="background:${safeColor(event.colorTheme.bg, '#f1f5f9')};color:${safeColor(event.colorTheme.text, '#334155')};border-color:${safeColor(event.colorTheme.border, '#94a3b8')}"><div><span class="drag-handle">⠿</span> <span class="timeline-duration">${esc(event.durationText)}</span></div><div>${esc(event.content)}</div><div class="item-actions"><button class="button button-ghost" data-edit="${esc(event.id)}" ${locked ? 'disabled' : ''}>✎</button><button class="button button-ghost" data-delete="${esc(event.id)}" ${locked ? 'disabled' : ''}>🗑</button></div></article>`).join('') : emptyState('↝', 'No timeline events yet', 'Start with onset, then add important changes through the current state.')}</div></section>`;
   document.getElementById('add-event').addEventListener('click', () => editEvent(ctx));
   document.querySelectorAll('[data-edit]').forEach(button => button.addEventListener('click', () => editEvent(ctx, button.dataset.edit)));
   document.querySelectorAll('[data-delete]').forEach(button => button.addEventListener('click', () => { ctx.setField('timeline', ctx.session.timeline.filter(event => event.id !== button.dataset.delete)); ctx.render(); }));
@@ -22,6 +22,8 @@ export function renderTimeline(ctx) {
     card.addEventListener('drop', event => { event.preventDefault(); const target = card.dataset.event; if (!draggingId || draggingId === target) return; const next = [...ctx.session.timeline]; const from = next.findIndex(item => item.id === draggingId); const to = next.findIndex(item => item.id === target); next.splice(to, 0, next.splice(from, 1)[0]); ctx.setField('timeline', next); ctx.render(); });
   });
 }
+
+function safeColor(value, fallback) { return /^#[0-9a-f]{6}$/i.test(value) ? value : fallback; }
 
 function editEvent(ctx, id) {
   const current = ctx.session.timeline.find(event => event.id === id);

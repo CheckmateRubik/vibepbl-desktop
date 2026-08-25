@@ -1,5 +1,6 @@
 import { API } from './api.js';
 import { showToast } from './components/toast.js';
+import { esc } from './components/helpers.js';
 import { renderCase } from './pages/case.js';
 import { renderTerms } from './pages/terms.js';
 import { renderTimeline } from './pages/timeline.js';
@@ -8,24 +9,26 @@ import { renderObjectives } from './pages/objectives.js';
 import { renderRandomizer } from './pages/randomizer.js';
 import { renderVerification } from './pages/verification.js';
 import { renderSettings } from './pages/settings.js';
+import { renderPrint } from './pages/print.js';
 
-const routes = { case: renderCase, terms: renderTerms, timeline: renderTimeline, problems: renderProblems, objectives: renderObjectives, randomizer: renderRandomizer, verification: renderVerification, settings: renderSettings };
+const routes = { case: renderCase, terms: renderTerms, timeline: renderTimeline, problems: renderProblems, objectives: renderObjectives, randomizer: renderRandomizer, verification: renderVerification, settings: renderSettings, print: renderPrint };
 let session;
 let members = [];
 let saveChain = Promise.resolve();
 
 async function start() {
   try { [session, members] = await Promise.all([API.getSession(), API.getMembers()]); }
-  catch (error) { document.getElementById('page').innerHTML = `<div class="card"><h2>Could not open local workspace</h2><p>${String(error)}</p></div>`; return; }
+  catch (error) { document.getElementById('page').innerHTML = `<div class="card"><h2>Could not open local workspace</h2><p>${esc(String(error))}</p></div>`; return; }
   applyTheme(); render();
   window.addEventListener('hashchange', render);
   document.getElementById('sidebar-toggle').addEventListener('click', () => document.getElementById('sidebar').classList.toggle('open'));
-  document.getElementById('quick-print').addEventListener('click', () => API.openPrintWindow().catch(error => showToast(String(error), 'error')));
+  document.getElementById('quick-print').addEventListener('click', () => API.openPrintWindow());
 }
 
 function currentRoute() { return location.hash.replace(/^#\//, '').split('/')[0] || 'case'; }
 function render() {
   const route = currentRoute();
+  document.body.classList.toggle('print-preview-mode', route === 'print');
   document.querySelectorAll('[data-route]').forEach(link => link.classList.toggle('active', link.dataset.route === route));
   document.getElementById('session-title').textContent = session.title;
   document.getElementById('sidebar').classList.remove('open');

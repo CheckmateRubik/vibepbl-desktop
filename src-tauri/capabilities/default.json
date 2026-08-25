@@ -2,7 +2,7 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Capabilities for the local VibePBL desktop workspace",
-  "windows": ["main", "print"],
+  "windows": ["main"],
   "permissions": [
     "core:default",
     "dialog:default",

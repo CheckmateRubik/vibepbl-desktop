@@ -51,7 +51,7 @@ function buildTopics(session) {
   });
   return topics;
 }
-function assignmentCard(topic, assigned, people) { return `<article class="assignment-card"><div class="assignment-topic">${esc(topic.label)}<br>${esc(topic.problemLabel)}</div><select class="select" data-assignment="${topic.key}"><option value="">Not assigned</option>${people.map(name => `<option value="${esc(name)}" ${assigned === name ? 'selected' : ''}>${esc(name)}</option>`).join('')}</select></article>`; }
+function assignmentCard(topic, assigned, people) { return `<article class="assignment-card"><div class="assignment-topic">${esc(topic.label)}<br>${esc(topic.problemLabel)}</div><select class="select" data-assignment="${esc(topic.key)}"><option value="">Not assigned</option>${people.map(name => `<option value="${esc(name)}" ${assigned === name ? 'selected' : ''}>${esc(name)}</option>`).join('')}</select></article>`; }
 async function animateDraw(ctx, people, topics) {
   rolling = true; document.getElementById('randomize').disabled = true;
   const assignments = fairRandomize(people, topics.map(topic => topic.key));

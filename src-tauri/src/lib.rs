@@ -41,7 +41,6 @@ pub fn run() {
             commands::savefile::export_savefile_dialog,
             commands::savefile::import_savefile_dialog,
             commands::print::get_print_act1_data,
-            commands::print::open_print_window,
         ])
         .run(tauri::generate_context!())
         .expect("error while running VibePBL Desktop");

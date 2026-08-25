@@ -43,7 +43,7 @@ export const API = {
   exportSavefile: () => invoke ? invoke('export_savefile_dialog') : nativeOnly('Native Save As is available in the installed desktop app.'),
   importSavefile: () => invoke ? invoke('import_savefile_dialog') : nativeOnly('Native file opening is available in the installed desktop app.'),
   getPrintData: () => desktopOr('get_print_act1_data', undefined, () => ({ session: previewRead(), generatedAt: new Date().toISOString() })),
-  openPrintWindow: () => desktopOr('open_print_window', undefined, () => window.open('./print-act1.html', '_blank')),
+  openPrintWindow: () => { location.hash = '#/print'; },
   imageUrl: path => window.__TAURI__?.core?.convertFileSrc ? window.__TAURI__.core.convertFileSrc(path) : path
 };
 

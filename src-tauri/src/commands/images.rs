@@ -66,8 +66,15 @@ pub fn delete_image(image_id: String, state: State<'_, AppState>) -> Result<(), 
         .find(|image| image.id == image_id)
     {
         let path = Path::new(&image.local_path);
-        if path.starts_with(state.app_data_dir.join("images")) && path.exists() {
-            fs::remove_file(path).map_err(|error| format!("Could not remove image: {error}"))?;
+        let image_directory = state.app_data_dir.join("images");
+        let private_path = path.canonicalize().ok().filter(|candidate| {
+            image_directory
+                .canonicalize()
+                .is_ok_and(|directory| candidate.starts_with(directory))
+        });
+        if let Some(private_path) = private_path {
+            fs::remove_file(private_path)
+                .map_err(|error| format!("Could not remove image: {error}"))?;
         }
     }
     session.case_images.retain(|image| image.id != image_id);
