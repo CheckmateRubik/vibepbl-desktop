@@ -1,6 +1,7 @@
 node_modules/
 **/node_modules/
 **/target/
+src-tauri/gen/
 
 # Local build and repair artifacts
 .npm-repair-backup/

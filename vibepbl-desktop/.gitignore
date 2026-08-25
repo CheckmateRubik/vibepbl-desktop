@@ -1,7 +1,0 @@
-/node_modules/
-/src-tauri/target/
-/src-tauri/gen/
-*.pbl.json
-*.log
-.DS_Store
-Thumbs.db

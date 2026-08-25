@@ -58,7 +58,7 @@ Prerequisites:
 - Rust stable 1.77.2 or newer
 - The platform prerequisites listed in the Tauri v2 documentation (WebView2 and MSVC tools on Windows; Xcode Command Line Tools on macOS)
 
-From `vibepbl-desktop`:
+From the repository root:
 
 ```sh
 npm install
