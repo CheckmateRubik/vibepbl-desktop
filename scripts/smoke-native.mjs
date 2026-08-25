@@ -1,11 +1,18 @@
+import { mkdtemp, rm } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
-import { resolve } from 'node:path';
+import { resolve, join } from 'node:path';
+import { tmpdir } from 'node:os';
 
 const executable = resolve(process.argv[2] || 'src-tauri/target/release/vibepbl-desktop.exe');
 const smokeImage = process.env.VIBEPBL_SMOKE_IMAGE;
+const dataDirectory = await mkdtemp(join(tmpdir(), 'vibepbl-native-check-'));
 const port = 9333;
 const app = spawn(executable, [], {
-  env: { ...process.env, WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${port}` },
+  env: {
+    ...process.env,
+    VIBEPBL_DATA_DIR: dataDirectory,
+    WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${port}`
+  },
   stdio: 'ignore',
   windowsHide: true
 });
@@ -49,7 +56,7 @@ async function connect(url) {
   return {
     send(method, params = {}) {
       const requestId = ++id;
-      socket.send(JSON.stringify({ id: requestId, method, params }));
+      socket.send(JSON.stringify({ id:requestId, method, params }));
       return new Promise((resolveResult, rejectResult) => pending.set(requestId, { resolveResult, rejectResult }));
     },
     errors,
@@ -58,136 +65,126 @@ async function connect(url) {
 }
 
 async function evaluate(client, expression) {
-  const response = await client.send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true });
+  const response = await client.send('Runtime.evaluate', { expression, awaitPromise:true, returnByValue:true });
   if (response.exceptionDetails) throw new Error(response.exceptionDetails.exception?.description || response.exceptionDetails.text);
   return response.result.value;
 }
 
 const invokeExpression = (command, args) => `(async () => window.__TAURI__.core.invoke(${JSON.stringify(command)}${args === undefined ? '' : `, ${JSON.stringify(args)}`}))()`;
 
+let client;
 try {
   const page = await findPage();
-  const client = await connect(page.webSocketDebuggerUrl);
+  client = await connect(page.webSocketDebuggerUrl);
   await client.send('Page.enable');
   await client.send('Runtime.enable');
   await client.send('Log.enable');
   let bridge;
   for (let attempt = 0; attempt < 40; attempt++) {
     bridge = await client.send('Runtime.evaluate', {
-      expression: `({ readyState: document.readyState, hasTauri: Boolean(window.__TAURI__), hasInvoke: typeof window.__TAURI__?.core?.invoke === 'function' })`,
-      returnByValue: true
+      expression: `({ readyState:document.readyState, hasTauri:Boolean(window.__TAURI__), hasInvoke:typeof window.__TAURI__?.core?.invoke === 'function' })`,
+      returnByValue:true
     });
     if (bridge.result.value?.readyState === 'complete' && bridge.result.value?.hasInvoke) break;
     await delay(250);
   }
-  const originalSession = await evaluate(client, invokeExpression('get_session'));
-  const originalMembers = await evaluate(client, invokeExpression('get_members'));
-  const testMemberName = `Native Smoke ${Date.now()}`;
-  let testMember;
-  const fieldMap = {
-    title: originalSession.title,
-    theme: originalSession.theme,
-    case_text: originalSession.caseText,
-    case_images: originalSession.caseImages,
-    terms: originalSession.terms,
-    timeline: originalSession.timeline,
-    problems: originalSession.problems,
-    objectives: originalSession.objectives,
-    presenter_assignments: originalSession.presenterAssignments,
-    is_act1_completed: originalSession.isAct1Completed
-  };
+
+  const testMemberName = `Isolated check ${Date.now()}`;
   const samples = {
-    title: 'ทดสอบระบบ VibePBL ภาษาไทย',
-    theme: 'midnight',
-    case_text: '<p><strong>ผู้ป่วยมีไข้</strong> และหายใจลำบาก</p><img src="x" onerror="globalThis.__vibepblXss=1"><script>globalThis.__vibepblXss=1</script>',
-    case_images: smokeImage ? [{ id:'image-smoke', filename:'image-smoke.png', originalName:'Smoke test image.png', localPath:smokeImage, pins:[{ id:'pin-smoke', x:50, y:50, label:'Representative finding' }] }] : [],
-    terms: [{ id:'term-smoke', name:'หายใจลำบาก', meaning:'อาการไม่สบายขณะหายใจ' }],
-    timeline: [{ id:'time-smoke', content:'อาการแย่ลง', durationText:'2 สัปดาห์ก่อน', colorTheme:{ name:'Slate', bg:'#f1f5f9', text:'#334155', border:'#94a3b8' } }],
-    problems: [{ id:'prob-smoke', text:'หายใจลำบากมากขึ้น', status:'none', hypotheses:[{ id:'hyp-smoke', text:'การติดเชื้อในปอด', status:'none', validation:'wrong', checked:false }] }],
-    objectives: [{ id:'lo-smoke', text:'เปรียบเทียบสาเหตุของอาการหายใจลำบาก', linkedProblemIds:['prob-smoke'] }],
-    presenter_assignments: { 'lo-smoke_prob-smoke': testMemberName },
+    title: 'ทดสอบการแสดงผลภาษาไทย',
+    theme: 'retro',
+    case_text: '',
+    case_images: smokeImage ? [{ id:'image-check', filename:'image-check.png', originalName:'ภาพกรณีศึกษา.png', localPath:smokeImage, highlights:[{ id:'highlight-check', x:18, y:22, width:34, height:12 }] }] : [],
+    terms: [{ id:'term-check', name:'หายใจลำบาก', meaning:'อาการไม่สบายขณะหายใจ' }],
+    timeline: [{ id:'time-check', content:'อาการแย่ลง', durationText:'2 สัปดาห์ก่อน', colorTheme:{ name:'Slate', bg:'#f1f5f9', text:'#334155', border:'#94a3b8' } }],
+    problems: [{ id:'prob-check', text:'หายใจลำบากมากขึ้น', status:'none', hypotheses:[{ id:'hyp-check', text:'การติดเชื้อในปอด', status:'none', validation:'wrong', checked:false }] }],
+    objectives: [{ id:'lo-check', text:'เปรียบเทียบสาเหตุของอาการหายใจลำบาก', linkedProblemIds:['prob-check'] }],
+    presenter_assignments: { 'lo-check_prob-check':testMemberName },
     is_act1_completed: false
   };
-  try {
-    for (const [fieldName, value] of Object.entries(samples)) {
-      await evaluate(client, invokeExpression('save_session_field', { fieldName, jsonValue:JSON.stringify(value) }));
-    }
-    const saved = await evaluate(client, invokeExpression('get_session'));
-    if (saved.title !== samples.title || saved.terms[0]?.name !== 'หายใจลำบาก' || saved.problems[0]?.hypotheses[0]?.validation !== 'wrong') {
-      throw new Error(`Session round-trip failed: ${JSON.stringify(saved)}`);
-    }
-    const printPayload = await evaluate(client, invokeExpression('get_print_act1_data'));
-    if (printPayload.session.title !== samples.title || printPayload.session.objectives.length !== 1) throw new Error('Print payload did not match the session.');
+  for (const [fieldName, value] of Object.entries(samples)) {
+    await evaluate(client, invokeExpression('save_session_field', { fieldName, jsonValue:JSON.stringify(value) }));
+  }
+  const saved = await evaluate(client, invokeExpression('get_session'));
+  if (saved.title !== samples.title || saved.terms[0]?.name !== 'หายใจลำบาก' || saved.problems[0]?.hypotheses[0]?.validation !== 'wrong') {
+    throw new Error(`Session round-trip failed: ${JSON.stringify(saved)}`);
+  }
+  const printPayload = await evaluate(client, invokeExpression('get_print_act1_data'));
+  if (printPayload.session.title !== samples.title || printPayload.session.objectives.length !== 1) throw new Error('Print payload did not match the session.');
 
-    testMember = await evaluate(client, invokeExpression('add_member', { name:testMemberName }));
-    const membersAfterAdd = await evaluate(client, invokeExpression('get_members'));
-    if (!membersAfterAdd.some(member => member.id === testMember.id)) throw new Error('Roster add/get round-trip failed.');
+  const testMember = await evaluate(client, invokeExpression('add_member', { name:testMemberName }));
+  const membersAfterAdd = await evaluate(client, invokeExpression('get_members'));
+  if (!membersAfterAdd.some(member => member.id === testMember.id)) throw new Error('Roster add/get round-trip failed.');
 
-    const invalidFieldRejected = await evaluate(client, `(async () => { try { await window.__TAURI__.core.invoke('save_session_field', { fieldName:'unsafe_field', jsonValue:'null' }); return false; } catch (error) { return String(error).includes('Unsupported session field'); } })()`);
-    if (!invalidFieldRejected) throw new Error('Native field allow-list did not reject an unsafe field.');
+  const invalidFieldRejected = await evaluate(client, `(async () => { try { await window.__TAURI__.core.invoke('save_session_field', { fieldName:'unsafe_field', jsonValue:'null' }); return false; } catch (error) { return String(error).includes('Unsupported session field'); } })()`);
+  if (!invalidFieldRejected) throw new Error('Native field allow-list did not reject an unsafe field.');
 
-    await client.send('Page.reload');
-    await delay(800);
-    const expectedRoutes = {
-      case:'Case materials', terms:'Terminology clarifier', timeline:'Clinical timeline', problems:'Problems & hypotheses',
-      objectives:'Learning objectives', randomizer:'Presenter randomizer', verification:'Hypotheses verification', settings:'Session & settings'
-    };
-    const routeResults = {};
-    for (const [route, expectedHeading] of Object.entries(expectedRoutes)) {
-      await evaluate(client, `location.hash = '#/${route}'`);
-      await delay(180);
-      routeResults[route] = await evaluate(client, `({ heading:document.querySelector('#page h2')?.textContent, text:document.querySelector('#page')?.innerText })`);
-      if (routeResults[route].heading !== expectedHeading) throw new Error(`Route ${route} rendered ${routeResults[route].heading} instead of ${expectedHeading}.`);
+  await client.send('Page.reload');
+  await delay(800);
+  const expectedRoutes = {
+    case:'Case materials', terms:'Terminology clarifier', timeline:'Clinical timeline', problems:'Problems & hypotheses',
+    objectives:'Learning objectives', randomizer:'Presenter randomizer', verification:'Hypotheses verification', settings:'Session & settings'
+  };
+  const routeResults = {};
+  for (const [route, expectedHeading] of Object.entries(expectedRoutes)) {
+    await evaluate(client, `location.hash = '#/${route}'`);
+    await delay(180);
+    routeResults[route] = await evaluate(client, `({ heading:document.querySelector('#page h2')?.textContent, text:document.querySelector('#page')?.innerText })`);
+    if (routeResults[route].heading !== expectedHeading) throw new Error(`Route ${route} rendered ${routeResults[route].heading} instead of ${expectedHeading}.`);
+  }
+  if (routeResults.case.text.includes('Clinical narrative') || await evaluate(client, `Boolean(document.querySelector('#case-editor,.toolbar,.pin,.pin-index'))`)) throw new Error('Removed narrative or pin controls are still present.');
+  if (!routeResults.terms.text.includes('หายใจลำบาก') || !routeResults.timeline.text.includes('อาการแย่ลง')) throw new Error('Thai Act 1 data did not render.');
+  if (!routeResults.problems.text.includes('Wrong') || !routeResults.verification.text.includes('Wrong')) throw new Error('Act 1/Act 2 hypothesis status was not synchronized.');
+  if (!routeResults.randomizer.text.includes(testMemberName) || !routeResults.objectives.text.includes('เปรียบเทียบสาเหตุของอาการหายใจลำบาก')) throw new Error('Thai Act 2 assignment or objective mapping did not render.');
+
+  const retroState = await evaluate(client, `({ theme:document.documentElement.dataset.theme, shell:getComputedStyle(document.querySelector('.app-shell')).display, sidebar:getComputedStyle(document.querySelector('.sidebar')).position })`);
+  if (retroState.theme !== 'retro' || retroState.shell !== 'block' || retroState.sidebar !== 'static') throw new Error(`Retro theme did not change the layout: ${JSON.stringify(retroState)}`);
+
+  await evaluate(client, `document.getElementById('reset-session').click()`);
+  const resetDialog = await evaluate(client, `({ title:document.querySelector('.modal-header strong')?.textContent, inputs:document.querySelectorAll('#modal-root input').length, confirm:document.querySelector('[data-confirm]')?.textContent })`);
+  if (resetDialog.title !== 'Delete this session?' || resetDialog.inputs !== 0 || !resetDialog.confirm?.includes('Delete session')) throw new Error(`Reset confirmation is incorrect: ${JSON.stringify(resetDialog)}`);
+  await evaluate(client, `document.querySelector('[data-cancel]').click()`);
+
+  if (smokeImage) {
+    await evaluate(client, `location.hash = '#/case'`);
+    await delay(180);
+    await evaluate(client, `document.querySelector('[data-image]').click()`);
+    let imageState;
+    for (let attempt = 0; attempt < 20; attempt++) {
+      imageState = await evaluate(client, `(() => { const image = document.querySelector('.highlight-image-wrap img'); return image && { complete:image.complete, naturalWidth:image.naturalWidth, alt:image.alt, highlights:document.querySelectorAll('.image-highlight').length, inputs:document.querySelectorAll('#modal-root input, #modal-root textarea').length }; })()`);
+      if (imageState?.complete && imageState.naturalWidth > 0) break;
+      await delay(100);
     }
-    if (!routeResults.case.text.includes('ผู้ป่วยมีไข้') || !routeResults.terms.text.includes('หายใจลำบาก') || !routeResults.timeline.text.includes('อาการแย่ลง')) throw new Error('Thai Act 1 data did not render.');
-    const injectionState = await evaluate(client, `({ marker:Boolean(globalThis.__vibepblXss), scripts:document.querySelectorAll('#case-editor script').length, images:document.querySelectorAll('#case-editor img').length, unsafeAttributes:document.querySelectorAll('#case-editor [onerror]').length })`);
-    if (injectionState.marker || injectionState.scripts || injectionState.images || injectionState.unsafeAttributes) throw new Error(`Stored rich-text injection was not sanitized: ${JSON.stringify(injectionState)}`);
-    if (!routeResults.problems.text.includes('Wrong') || !routeResults.verification.text.includes('Wrong')) throw new Error('Act 1/Act 2 hypothesis status was not synchronized.');
-    if (!routeResults.randomizer.text.includes(testMemberName) || !routeResults.objectives.text.includes('เปรียบเทียบสาเหตุของอาการหายใจลำบาก')) throw new Error('Thai Act 2 assignment or objective mapping did not render.');
-    if (smokeImage) {
-      await evaluate(client, `location.hash = '#/case'`);
-      let imageState;
-      for (let attempt = 0; attempt < 20; attempt++) {
-        imageState = await evaluate(client, `(() => { const image = document.querySelector('.image-card img'); return image && { complete:image.complete, naturalWidth:image.naturalWidth, alt:image.alt }; })()`);
-        if (imageState?.complete && imageState.naturalWidth > 0) break;
-        await delay(100);
-      }
-      if (!imageState?.complete || imageState.naturalWidth < 1 || imageState.alt !== 'Smoke test image.png') throw new Error(`Private clinical image did not render: ${JSON.stringify(imageState)}`);
-    }
+    if (!imageState?.complete || imageState.naturalWidth < 1 || imageState.alt !== 'ภาพกรณีศึกษา.png' || imageState.highlights !== 1 || imageState.inputs !== 0) throw new Error(`Case image/highlight editor failed: ${JSON.stringify(imageState)}`);
+    await evaluate(client, `document.querySelector('[data-close]').click()`);
+  }
 
-    for (let printAttempt = 0; printAttempt < 2; printAttempt++) {
-      await evaluate(client, `document.getElementById('quick-print').click()`);
-      let printState;
-      for (let attempt = 0; attempt < 40; attempt++) {
-        printState = await evaluate(client, `({ hash:location.hash, title:document.title, heading:document.querySelector('.print-report h1')?.textContent, reportText:document.querySelector('.print-report')?.innerText, unsafeContent:Boolean(document.querySelector('.print-report script,.print-report img[src="x"],.print-report [onerror]')), hasPrintButton:Boolean(document.querySelector('#print-now')), hasBackButton:Boolean(document.querySelector('#back-from-print')) })`);
-        if (printState.hash === '#/print' && printState.heading) break;
-        await delay(100);
-      }
-      if (printState.hash !== '#/print' || printState.title !== 'VibePBL Desktop' || printState.heading !== samples.title || !printState.reportText.includes('ผู้ป่วยมีไข้') || printState.unsafeContent || !printState.hasPrintButton || !printState.hasBackButton) throw new Error(`Print preview failed: ${JSON.stringify(printState)}`);
-      await evaluate(client, `history.back()`);
-      for (let attempt = 0; attempt < 40; attempt++) {
-        if (await evaluate(client, `location.hash !== '#/print' && Boolean(document.getElementById('quick-print'))`)) break;
-        await delay(100);
-      }
+  for (let printAttempt = 0; printAttempt < 2; printAttempt++) {
+    await evaluate(client, `document.getElementById('quick-print').click()`);
+    let printState;
+    for (let attempt = 0; attempt < 40; attempt++) {
+      printState = await evaluate(client, `({ hash:location.hash, title:document.title, heading:document.querySelector('.print-report h1')?.textContent, reportText:document.querySelector('.print-report')?.innerText, hasNarrative:Boolean([...document.querySelectorAll('.print-report h2')].find(item => item.textContent.includes('narrative'))), hasPrintButton:Boolean(document.querySelector('#print-now')), hasBackButton:Boolean(document.querySelector('#back-from-print')) })`);
+      if (printState.hash === '#/print' && printState.heading) break;
+      await delay(100);
     }
-
-    await evaluate(client, invokeExpression('remove_member', { id:testMember.id }));
-    testMember = undefined;
-    const membersAfterRemove = await evaluate(client, invokeExpression('get_members'));
-    if (membersAfterRemove.length !== originalMembers.length) throw new Error('Roster cleanup failed.');
-
-    const result = { page:{ title:page.title, url:page.url }, bridge:bridge.result.value, session:{ id:saved.id, title:saved.title }, routes:Object.keys(routeResults), nativeErrors:client.errors };
-    if (!result.bridge.hasTauri || !result.bridge.hasInvoke || result.session.id !== 1 || client.errors.length) {
-      throw new Error(`Native bridge check failed: ${JSON.stringify(result)}`);
-    }
-    console.log(`Native release checks OK: ${JSON.stringify(result)}`);
-  } finally {
-    if (testMember) await evaluate(client, invokeExpression('remove_member', { id:testMember.id })).catch(() => {});
-    for (const [fieldName, value] of Object.entries(fieldMap)) {
-      await evaluate(client, invokeExpression('save_session_field', { fieldName, jsonValue:JSON.stringify(value) })).catch(() => {});
+    if (printState.hash !== '#/print' || printState.title !== 'VibePBL Desktop' || printState.heading !== samples.title || !printState.reportText.includes('หายใจลำบาก') || printState.hasNarrative || !printState.hasPrintButton || !printState.hasBackButton) throw new Error(`Print preview failed: ${JSON.stringify(printState)}`);
+    await evaluate(client, `history.back()`);
+    for (let attempt = 0; attempt < 40; attempt++) {
+      if (await evaluate(client, `location.hash !== '#/print' && Boolean(document.getElementById('quick-print'))`)) break;
+      await delay(100);
     }
   }
-  client.close();
+
+  await evaluate(client, invokeExpression('remove_member', { id:testMember.id }));
+  const membersAfterRemove = await evaluate(client, invokeExpression('get_members'));
+  if (membersAfterRemove.length) throw new Error('Roster cleanup failed in the isolated test database.');
+
+  const result = { page:{ title:page.title, url:page.url }, bridge:bridge.result.value, session:{ id:saved.id, title:saved.title }, routes:Object.keys(routeResults), nativeErrors:client.errors };
+  if (!result.bridge.hasTauri || !result.bridge.hasInvoke || result.session.id !== 1 || client.errors.length) throw new Error(`Native bridge check failed: ${JSON.stringify(result)}`);
+  console.log(`Native release checks OK: ${JSON.stringify(result)}`);
 } finally {
+  client?.close();
   app.kill();
+  await delay(350);
+  await rm(dataDirectory, { recursive:true, force:true }).catch(() => {});
 }

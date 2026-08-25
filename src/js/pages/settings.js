@@ -1,9 +1,11 @@
 import { esc, pageHeader } from '../components/helpers.js';
+import { openConfirmModal } from '../components/modal.js';
 
 const themes = [
   ['default','Clinical Light',['#10172c','#3672f4','#f6f8fc']], ['dark','Dark Mode',['#080d17','#6ea0ff','#151d2d']],
   ['midnight','Midnight & Gold',['#102a43','#a87316','#f1f5fa']], ['medical','Medical Minimal',['#263a3d','#287e82','#f3f7f7']],
-  ['sepia','Warm Sepia',['#47372c','#9b5e35','#f5efe4']], ['contrast','High Contrast',['#000','#0047cc','#fff']]
+  ['sepia','Warm Sepia',['#47372c','#9b5e35','#f5efe4']], ['contrast','High Contrast',['#000','#0047cc','#fff']],
+  ['retro','Retro Web 2000',['#fff','#0000ee','#c0c0c0']]
 ];
 
 export function renderSettings(ctx) {
@@ -24,5 +26,10 @@ export function renderSettings(ctx) {
   document.getElementById('import-members').addEventListener('click', async () => { const names = document.getElementById('member-list').value.split(/\r?\n|,/).map(name => name.trim()).filter(Boolean); if (!names.length) return; await ctx.API.importMembers(names); await ctx.refreshMembers(); });
   document.getElementById('export-session').addEventListener('click', async () => { try { const path = await ctx.API.exportSavefile(); ctx.showToast(`Session saved to ${path}`, 'success'); } catch (error) { if (!String(error).includes('cancelled')) ctx.showToast(String(error), 'error'); } });
   document.getElementById('import-session').addEventListener('click', async () => { try { const next = await ctx.API.importSavefile(); ctx.setSession(next); ctx.showToast('Session opened', 'success'); } catch (error) { if (!String(error).includes('cancelled')) ctx.showToast(String(error), 'error'); } });
-  document.getElementById('reset-session').addEventListener('click', async () => { if (prompt('Type RESET to clear this session:') !== 'RESET') return; await ctx.API.resetSession(); ctx.setSession(await ctx.API.getSession()); ctx.showToast('Working session reset', 'success'); });
+  document.getElementById('reset-session').addEventListener('click', () => openConfirmModal(
+    'Delete this session?',
+    'This clears the working session and keeps your saved group roster.',
+    async () => { await ctx.API.resetSession(); ctx.setSession(await ctx.API.getSession()); ctx.showToast('Working session reset', 'success'); },
+    'Delete session'
+  ));
 }

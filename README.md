@@ -13,14 +13,12 @@ There are no accounts, rooms, cloud services, analytics, or internet requirement
 
 End users do not need Docker, Node.js, Rust, a terminal, an account, or internet access after downloading the installer.
 
-> Maintainers: update the placeholder repository URL in `src-tauri/Cargo.toml` before publishing the first release.
-
 ## Secretary workflow
 
 ### Act 1
 
-1. Enter the case narrative and import local clinical images.
-2. Open an image and click a finding to add a proportionally positioned numbered pin.
+1. Import the case image from the local computer.
+2. Open the image and drag across each specific word or region that should be highlighted.
 3. Clarify unfamiliar terms and build the chronological clinical timeline.
 4. Add problem points and formulate differential hypotheses for each one.
 5. Write learning objectives and link each to one or more problem points.
@@ -39,7 +37,7 @@ Act 2 verification updates the same hypothesis records used in Act 1, so both vi
 
 The active workspace auto-saves to the local SQLite database. **Save .pbl.json** creates a portable backup using the native Save As dialog. **Open .pbl.json** restores the session and writes embedded images into the app’s private data folder.
 
-The member roster persists independently when a session is reset. Use the destructive reset button only after typing `RESET` into the confirmation prompt.
+The member roster persists independently when a session is reset. The app asks for confirmation before deleting the working session.
 
 ## Offline data locations
 

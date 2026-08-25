@@ -1,10 +1,10 @@
 [package]
 name = "vibepbl-desktop"
-version = "1.0.3"
+version = "1.0.4"
 description = "Offline secretary workspace for medical PBL sessions"
 authors = ["CheckmateRubik"]
 license = "MIT"
-repository = "https://github.com/CheckmateRubik/VibePBL"
+repository = "https://github.com/CheckmateRubik/vibepbl-desktop"
 edition = "2021"
 rust-version = "1.77.2"
 

@@ -2,11 +2,14 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct PinAnnotation {
+pub struct HighlightRegion {
     pub id: String,
     pub x: f64,
     pub y: f64,
-    pub label: String,
+    #[serde(default)]
+    pub width: f64,
+    #[serde(default)]
+    pub height: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -16,8 +19,8 @@ pub struct ImageMetadata {
     pub filename: String,
     pub original_name: String,
     pub local_path: String,
-    #[serde(default)]
-    pub pins: Vec<PinAnnotation>,
+    #[serde(default, alias = "pins")]
+    pub highlights: Vec<HighlightRegion>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

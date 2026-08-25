@@ -34,7 +34,7 @@ pub fn pick_and_import_image(state: State<'_, AppState>) -> Result<ImageMetadata
             .unwrap_or("Clinical image")
             .to_string(),
         local_path: destination.to_string_lossy().to_string(),
-        pins: Vec::new(),
+        highlights: Vec::new(),
     };
 
     let connection = state

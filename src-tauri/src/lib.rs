@@ -19,7 +19,9 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_sql::Builder::default().build())
         .setup(|app| {
-            let app_data_dir = app.path().app_data_dir()?.join("vibepbl");
+            let app_data_dir = std::env::var_os("VIBEPBL_DATA_DIR")
+                .map(PathBuf::from)
+                .unwrap_or(app.path().app_data_dir()?.join("vibepbl"));
             std::fs::create_dir_all(app_data_dir.join("images"))?;
             let connection = db::open(&app_data_dir.join("vibepbl.db"))?;
             app.manage(AppState {

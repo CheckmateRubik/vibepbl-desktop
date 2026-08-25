@@ -19,3 +19,16 @@ export function openFormModal(title, fields, onSubmit, submitLabel = 'Save') {
     root.querySelector('input,textarea,select')?.focus();
   });
 }
+
+export function openConfirmModal(title, message, onConfirm, confirmLabel = 'Delete') {
+  const body = `<p class="confirm-message">${message}</p><div class="modal-actions"><button class="button button-danger" type="button" data-confirm>${confirmLabel}</button><button class="button button-secondary" type="button" data-cancel>Cancel</button></div>`;
+  openModal(title, body, (root, close) => {
+    root.querySelector('[data-cancel]').addEventListener('click', close);
+    root.querySelector('[data-confirm]').addEventListener('click', async event => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      try { await onConfirm(); close(); }
+      catch (error) { button.disabled = false; throw error; }
+    });
+  });
+}
