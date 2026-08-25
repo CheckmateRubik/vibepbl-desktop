@@ -16,8 +16,8 @@ jobs:
         platform: [windows-latest, macos-latest]
     runs-on: ${{ matrix.platform }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
       - uses: dtolnay/rust-toolchain@stable
@@ -39,8 +39,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: __VERSION__
+          tagName: v__VERSION__
           releaseName: VibePBL Desktop __VERSION__
           releaseBody: Offline desktop installers for VibePBL Secretary Edition.
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
