@@ -2,7 +2,7 @@
   "name": "vibepbl-desktop",
   "private": true,
   "type": "module",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Offline secretary workspace for medical PBL sessions",
   "scripts": {
     "tauri": "tauri",

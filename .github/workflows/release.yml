@@ -24,12 +24,20 @@ jobs:
         with:
           node-version: 22
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
       - name: Install frontend tooling
-        run: npm install
+        run: npm ci
       - name: Check frontend JavaScript
         run: npm run check:js
       - name: Test fair randomizer
         run: node scripts/test-randomizer.mjs
+      - name: Check Rust formatting
+        run: cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
+      - name: Lint native code
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features --locked -- -D warnings
+      - name: Test native code
+        run: cargo test --manifest-path src-tauri/Cargo.toml --all-targets --all-features --locked
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

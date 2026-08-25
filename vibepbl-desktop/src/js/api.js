@@ -1,5 +1,18 @@
 const invoke = window.__TAURI__?.core?.invoke;
+const isPackagedApp = location.hostname === 'tauri.localhost';
 const STORE_KEY = 'vibepbl-browser-preview';
+
+function nativeOnly(message) {
+  return Promise.reject(new Error(isPackagedApp && !invoke
+    ? 'The native desktop bridge failed to initialize. Reinstall the latest VibePBL Desktop release.'
+    : message));
+}
+
+function desktopOr(command, args, preview) {
+  if (invoke) return invoke(command, args);
+  if (isPackagedApp) return nativeOnly('This operation requires the native desktop bridge.');
+  return Promise.resolve().then(preview);
+}
 
 export const blankSession = () => ({
   id: 1, title: 'PBL Session', theme: 'default', caseText: '', caseImages: [], terms: [], timeline: [],
@@ -18,19 +31,19 @@ function previewWrite(field, value) {
 
 export const API = {
   isNative: Boolean(invoke),
-  getSession: () => invoke ? invoke('get_session') : Promise.resolve(previewRead()),
-  saveField: (field, value) => invoke ? invoke('save_session_field', { fieldName: field, jsonValue: JSON.stringify(value) }) : Promise.resolve(previewWrite(toCamel(field), value)),
-  resetSession: () => invoke ? invoke('reset_session') : Promise.resolve(localStorage.removeItem(STORE_KEY)),
-  pickImage: () => invoke ? invoke('pick_and_import_image') : Promise.reject(new Error('Image importing is available in the installed desktop app.')),
-  deleteImage: id => invoke ? invoke('delete_image', { imageId: id }) : Promise.resolve(),
-  getMembers: () => invoke ? invoke('get_members') : Promise.resolve(JSON.parse(localStorage.getItem('vibepbl-members') || '[]')),
-  addMember: name => invoke ? invoke('add_member', { name }) : Promise.resolve(previewAddMember(name)),
-  removeMember: id => invoke ? invoke('remove_member', { id }) : Promise.resolve(previewRemoveMember(id)),
-  importMembers: names => invoke ? invoke('import_members_list', { names }) : Promise.all(names.map(previewAddMember)),
-  exportSavefile: () => invoke ? invoke('export_savefile_dialog') : Promise.reject(new Error('Native Save As is available in the installed desktop app.')),
-  importSavefile: () => invoke ? invoke('import_savefile_dialog') : Promise.reject(new Error('Native file opening is available in the installed desktop app.')),
-  getPrintData: () => invoke ? invoke('get_print_act1_data') : Promise.resolve({ session: previewRead(), generatedAt: new Date().toISOString() }),
-  openPrintWindow: () => invoke ? invoke('open_print_window') : Promise.resolve(window.open('./print-act1.html', '_blank')),
+  getSession: () => desktopOr('get_session', undefined, previewRead),
+  saveField: (field, value) => desktopOr('save_session_field', { fieldName: field, jsonValue: JSON.stringify(value) }, () => previewWrite(toCamel(field), value)),
+  resetSession: () => desktopOr('reset_session', undefined, () => localStorage.removeItem(STORE_KEY)),
+  pickImage: () => invoke ? invoke('pick_and_import_image') : nativeOnly('Image importing is available in the installed desktop app.'),
+  deleteImage: id => desktopOr('delete_image', { imageId: id }, () => undefined),
+  getMembers: () => desktopOr('get_members', undefined, () => JSON.parse(localStorage.getItem('vibepbl-members') || '[]')),
+  addMember: name => desktopOr('add_member', { name }, () => previewAddMember(name)),
+  removeMember: id => desktopOr('remove_member', { id }, () => previewRemoveMember(id)),
+  importMembers: names => desktopOr('import_members_list', { names }, () => Promise.all(names.map(previewAddMember))),
+  exportSavefile: () => invoke ? invoke('export_savefile_dialog') : nativeOnly('Native Save As is available in the installed desktop app.'),
+  importSavefile: () => invoke ? invoke('import_savefile_dialog') : nativeOnly('Native file opening is available in the installed desktop app.'),
+  getPrintData: () => desktopOr('get_print_act1_data', undefined, () => ({ session: previewRead(), generatedAt: new Date().toISOString() })),
+  openPrintWindow: () => desktopOr('open_print_window', undefined, () => window.open('./print-act1.html', '_blank')),
   imageUrl: path => window.__TAURI__?.core?.convertFileSrc ? window.__TAURI__.core.convertFileSrc(path) : path
 };
 

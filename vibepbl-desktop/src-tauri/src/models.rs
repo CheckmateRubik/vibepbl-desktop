@@ -59,7 +59,9 @@ pub struct Hypothesis {
     pub checked: bool,
 }
 
-fn default_status() -> String { "none".into() }
+fn default_status() -> String {
+    "none".into()
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

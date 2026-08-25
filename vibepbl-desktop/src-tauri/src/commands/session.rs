@@ -4,7 +4,12 @@ use tauri::State;
 use crate::{models::SessionData, AppState};
 
 const JSON_FIELDS: &[&str] = &[
-    "case_images", "terms", "timeline", "problems", "objectives", "presenter_assignments",
+    "case_images",
+    "terms",
+    "timeline",
+    "problems",
+    "objectives",
+    "presenter_assignments",
 ];
 
 pub fn read_session(connection: &Connection) -> Result<SessionData, String> {
@@ -40,7 +45,10 @@ pub fn read_session(connection: &Connection) -> Result<SessionData, String> {
 
 #[tauri::command]
 pub fn get_session(state: State<'_, AppState>) -> Result<SessionData, String> {
-    let connection = state.db.lock().map_err(|_| "Database is busy".to_string())?;
+    let connection = state
+        .db
+        .lock()
+        .map_err(|_| "Database is busy".to_string())?;
     read_session(&connection)
 }
 
@@ -51,8 +59,16 @@ pub fn save_session_field(
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let allowed = [
-        "title", "theme", "case_text", "case_images", "terms", "timeline", "problems",
-        "objectives", "presenter_assignments", "is_act1_completed",
+        "title",
+        "theme",
+        "case_text",
+        "case_images",
+        "terms",
+        "timeline",
+        "problems",
+        "objectives",
+        "presenter_assignments",
+        "is_act1_completed",
     ];
     if !allowed.contains(&field_name.as_str()) {
         return Err("Unsupported session field".into());
@@ -63,20 +79,37 @@ pub fn save_session_field(
     let stored = if JSON_FIELDS.contains(&field_name.as_str()) {
         serde_json::to_string(&value).map_err(|error| error.to_string())?
     } else if field_name == "is_act1_completed" {
-        if value.as_bool().unwrap_or(false) { "1".into() } else { "0".into() }
+        if value.as_bool().unwrap_or(false) {
+            "1".into()
+        } else {
+            "0".into()
+        }
     } else {
-        value.as_str().ok_or_else(|| "Expected a text value".to_string())?.to_string()
+        value
+            .as_str()
+            .ok_or_else(|| "Expected a text value".to_string())?
+            .to_string()
     };
 
-    let sql = format!("UPDATE session SET {field_name} = ?1, updated_at = CURRENT_TIMESTAMP WHERE id = 1");
-    let connection = state.db.lock().map_err(|_| "Database is busy".to_string())?;
-    connection.execute(&sql, params![stored]).map_err(|error| error.to_string())?;
+    let sql = format!(
+        "UPDATE session SET {field_name} = ?1, updated_at = CURRENT_TIMESTAMP WHERE id = 1"
+    );
+    let connection = state
+        .db
+        .lock()
+        .map_err(|_| "Database is busy".to_string())?;
+    connection
+        .execute(&sql, params![stored])
+        .map_err(|error| error.to_string())?;
     Ok(())
 }
 
 #[tauri::command]
 pub fn reset_session(state: State<'_, AppState>) -> Result<(), String> {
-    let connection = state.db.lock().map_err(|_| "Database is busy".to_string())?;
+    let connection = state
+        .db
+        .lock()
+        .map_err(|_| "Database is busy".to_string())?;
     connection
         .execute(
             "UPDATE session SET title='PBL Session', theme='default', case_text='', case_images='[]', terms='[]', timeline='[]', problems='[]', objectives='[]', presenter_assignments='{}', is_act1_completed=0, updated_at=CURRENT_TIMESTAMP WHERE id=1",
