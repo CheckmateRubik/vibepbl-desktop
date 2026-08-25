@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en" data-theme="default">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light dark">
+    <title>VibePBL Desktop</title>
+    <link rel="stylesheet" href="./css/bootstrap.min.css">
+    <link rel="stylesheet" href="./css/app.css">
+    <link rel="stylesheet" href="./css/themes/default.css">
+    <link rel="stylesheet" href="./css/themes/dark.css">
+    <link rel="stylesheet" href="./css/themes/midnight.css">
+    <link rel="stylesheet" href="./css/themes/medical.css">
+    <link rel="stylesheet" href="./css/themes/sepia.css">
+    <link rel="stylesheet" href="./css/themes/contrast.css">
+  </head>
+  <body>
+    <div id="app" class="app-shell">
+      <aside class="sidebar" id="sidebar">
+        <div class="brand"><span class="brand-mark">PBL</span><span><strong>VibePBL</strong><small>Secretary Edition</small></span></div>
+        <div class="local-badge"><span class="pulse-dot"></span><span><strong>Private workspace</strong><small>Saved locally on this device</small></span></div>
+        <nav aria-label="Workspace navigation">
+          <p class="nav-label">ACT 1 · ANALYSE</p>
+          <a href="#/case" data-route="case"><span>▤</span>Case materials</a>
+          <a href="#/terms" data-route="terms"><span>?</span>Clarifying terms</a>
+          <a href="#/timeline" data-route="timeline"><span>↝</span>Clinical timeline</a>
+          <a href="#/problems" data-route="problems"><span>☷</span>Problems & hypotheses</a>
+          <a href="#/objectives" data-route="objectives"><span>▱</span>Learning objectives</a>
+          <p class="nav-label">ACT 2 · SYNTHESISE</p>
+          <a href="#/randomizer" data-route="randomizer"><span>♜</span>Presenter randomizer</a>
+          <a href="#/verification" data-route="verification"><span>✓</span>Verification board</a>
+        </nav>
+        <a class="settings-link" href="#/settings" data-route="settings"><span>⚙</span>Session & settings</a>
+      </aside>
+      <main class="main-shell">
+        <header class="topbar">
+          <button id="sidebar-toggle" class="icon-button" aria-label="Toggle sidebar">☰</button>
+          <div><span class="eyebrow">ACTIVE SESSION</span><h1 id="session-title">PBL Session</h1></div>
+          <div class="topbar-actions"><span id="save-indicator" class="save-indicator">Saved</span><button id="quick-print" class="button button-secondary">Print Act 1</button></div>
+        </header>
+        <section id="page" class="page" aria-live="polite"><div class="loading">Opening your workspace…</div></section>
+      </main>
+    </div>
+    <div id="toast-region" class="toast-region" aria-live="polite"></div>
+    <div id="modal-root"></div>
+    <script type="module" src="./js/main.js"></script>
+  </body>
+</html>

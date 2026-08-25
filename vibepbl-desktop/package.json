@@ -1,0 +1,16 @@
+{
+  "name": "vibepbl-desktop",
+  "private": true,
+  "type": "module",
+  "version": "1.0.0",
+  "description": "Offline secretary workspace for medical PBL sessions",
+  "scripts": {
+    "tauri": "tauri",
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "check:js": "node scripts/check-js.mjs"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.8.0"
+  }
+}

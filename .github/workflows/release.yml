@@ -1,0 +1,42 @@
+name: Build VibePBL Desktop
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.platform }}
+    defaults:
+      run:
+        working-directory: vibepbl-desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install frontend tooling
+        run: npm install
+      - name: Check frontend JavaScript
+        run: npm run check:js
+      - name: Test fair randomizer
+        run: node scripts/test-randomizer.mjs
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: vibepbl-desktop
+          tagName: __VERSION__
+          releaseName: VibePBL Desktop __VERSION__
+          releaseBody: Offline desktop installers for VibePBL Secretary Edition.
+          releaseDraft: true
+          prerelease: false
