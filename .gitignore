@@ -1,0 +1,28 @@
+node_modules/
+**/node_modules/
+**/target/
+
+# Local build and repair artifacts
+.npm-repair-backup/
+rustup-init.exe
+*.pbl.json
+
+# Local source material (not part of the distributed application)
+prompt.md
+old vibepbl/
+
+# Operating system and editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+data/vibepbl.db
+data/vibepbl.db-*
+data/members.json
+server/uploads/*
+!server/uploads/.gitkeep
+uploads/*
+!uploads/.gitkeep
+.env
+*.log
