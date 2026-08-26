@@ -80,6 +80,9 @@ nav a,.settings-link{border-radius:7px;padding:10px 12px;font-size:13px}
 .problem-detail-head h3{margin:11px 0 0;font-size:21px}
 .hypothesis-entry{margin-top:4px}
 .objective-link-row{display:grid;grid-template-columns:145px minmax(220px,480px);align-items:center;gap:14px;margin-top:18px;padding:15px;border-top:1px solid var(--border-color);background:color-mix(in srgb,var(--button-soft) 35%,transparent)}
+.objective-link-section{margin-top:18px;padding:15px;border-top:1px solid var(--border-color);background:color-mix(in srgb,var(--button-soft) 35%,transparent)}
+.objective-link-section .check-grid{margin-top:10px}
+.check-chip.is-unavailable{opacity:.55;cursor:not-allowed}
 @media(max-width:1050px){.app-shell{display:block}.main-shell{width:100%}.sidebar{width:252px}.page{padding:24px}}
 @media(max-width:700px){.highlight-footer{align-items:flex-start;flex-direction:column}.highlight-actions{width:100%;justify-content:space-between}.highlight-stage{min-height:260px;padding:8px}.timeline-builder{padding:18px 12px}.timeline-event-card{padding:17px 15px}.timeline-event-head{align-items:flex-start}.timeline-event-actions{align-items:flex-end;flex-direction:column-reverse}.timeline-color-palette{gap:5px}.timeline-color-dot{width:18px;height:18px}.term-grid{grid-template-columns:1fr}.objective-link-row{grid-template-columns:1fr;gap:7px}}
 @media print{html,body,#app,.app-shell,.main-shell{height:auto;min-height:0;overflow:visible;position:static}}

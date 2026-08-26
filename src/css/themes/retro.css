@@ -69,6 +69,6 @@ html[data-theme="retro"] .toast{border:2px outset #fff;border-radius:0;backgroun
 html[data-theme="retro"] .lock-banner,html[data-theme="retro"] .random-stage{border-radius:0}
 html[data-theme="retro"] .timeline-event-card{border:2px outset #fff;background:var(--event-bg)}
 html[data-theme="retro"] .timeline-event-badge,html[data-theme="retro"] .timeline-step-input,html[data-theme="retro"] .timeline-connector b,html[data-theme="retro"] .timeline-color-dot{border-radius:0}
-html[data-theme="retro"] .timeline-step-input,html[data-theme="retro"] .term-card,html[data-theme="retro"] .objective-link-row{border:2px inset #fff;background:#fff}
+html[data-theme="retro"] .timeline-step-input,html[data-theme="retro"] .term-card,html[data-theme="retro"] .objective-link-row,html[data-theme="retro"] .objective-link-section{border:2px inset #fff;background:#fff}
 html[data-theme="retro"] .timeline-color-dot.active{outline:1px dotted #000;box-shadow:none}
 html[data-theme="retro"] .problem-count{border-radius:0;border:1px solid #808080}
