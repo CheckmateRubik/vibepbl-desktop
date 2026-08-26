@@ -51,10 +51,36 @@ function openHighlightEditor(ctx, imageId) {
   };
 
   openModal(esc(image.originalName), `
+    <div class="image-zoom-toolbar" aria-label="Image zoom controls"><button id="zoom-out" class="button button-secondary button-sm" aria-label="Zoom out">−</button><strong id="zoom-readout">100%</strong><button id="zoom-in" class="button button-secondary button-sm" aria-label="Zoom in">＋</button><button id="zoom-fit" class="button button-secondary button-sm">Fit image</button></div>
     <div class="highlight-stage"><div id="highlight-image-wrap" class="highlight-image-wrap ${locked ? 'is-locked' : ''}"><img id="highlight-image" src="${esc(ctx.API.imageUrl(image.localPath))}" alt="${esc(image.originalName)}" draggable="false"><div id="highlight-layer"></div></div></div>
     <div class="highlight-footer"><p>${locked ? 'Act 1 is locked.' : 'Drag over a word or area to highlight it. Click a highlight to remove it.'}</p><div class="highlight-actions"><strong id="highlight-total"></strong>${locked ? '' : '<button id="clear-highlights" class="button button-secondary button-sm">Clear highlights</button>'}</div></div>`, root => {
     const wrap = root.querySelector('#highlight-image-wrap');
+    const stage = root.querySelector('.highlight-stage');
     const stageImage = root.querySelector('#highlight-image');
+    let zoom = 1;
+    let fittedSize;
+    const applyZoom = next => {
+      if (!fittedSize) return;
+      zoom = Math.max(.5, Math.min(3, next));
+      stageImage.style.width = `${fittedSize.width * zoom}px`;
+      stageImage.style.height = `${fittedSize.height * zoom}px`;
+      stageImage.style.maxWidth = 'none';
+      stageImage.style.maxHeight = 'none';
+      root.querySelector('#zoom-readout').textContent = `${Math.round(zoom * 100)}%`;
+      root.querySelector('#zoom-out').disabled = zoom <= .5;
+      root.querySelector('#zoom-in').disabled = zoom >= 3;
+    };
+    const captureFittedSize = () => {
+      if (fittedSize || !stageImage.naturalWidth) return;
+      const scale = Math.min(1, Math.max(1, stage.clientWidth - 36) / stageImage.naturalWidth, Math.max(260, window.innerHeight * .65) / stageImage.naturalHeight);
+      fittedSize = { width:stageImage.naturalWidth * scale, height:stageImage.naturalHeight * scale };
+      applyZoom(zoom);
+    };
+    stageImage.addEventListener('load', captureFittedSize, { once:true });
+    if (stageImage.complete) requestAnimationFrame(captureFittedSize);
+    root.querySelector('#zoom-out').addEventListener('click', () => applyZoom(zoom - .25));
+    root.querySelector('#zoom-in').addEventListener('click', () => applyZoom(zoom + .25));
+    root.querySelector('#zoom-fit').addEventListener('click', () => applyZoom(1));
     renderRegions(root);
     if (locked) return;
 

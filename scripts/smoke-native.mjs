@@ -1,14 +1,19 @@
 import { access, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
-import { resolve, join } from 'node:path';
+import { basename, resolve, join, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 
 const executable = resolve(process.argv[2] || 'src-tauri/target/release/vibepbl-desktop.exe');
 const smokeImage = process.env.VIBEPBL_SMOKE_IMAGE;
-const dataDirectory = await mkdtemp(join(tmpdir(), 'vibepbl-native-check-'));
+const testRoot = process.platform === 'win32' && process.env.APPDATA ? join(process.env.APPDATA, 'app.vibepbl.desktop', 'vibepbl') : tmpdir();
+await mkdir(testRoot, { recursive:true });
+const dataDirectory = await mkdtemp(join(testRoot, 'native-check-'));
+if (!resolve(dataDirectory).startsWith(`${resolve(testRoot)}${sep}`) || !basename(dataDirectory).startsWith('native-check-')) throw new Error('Refusing to use an unsafe native-test directory.');
 const resetSentinel = join(dataDirectory, 'images', 'reset-check.png');
+const browserFixturePath = join(dataDirectory, 'images', 'browser-fixture.png');
 await mkdir(join(dataDirectory, 'images'), { recursive:true });
 await writeFile(resetSentinel, 'private image copy');
+await writeFile(browserFixturePath, Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64'));
 const port = 9333;
 const app = spawn(executable, [], {
   env: {
@@ -107,7 +112,7 @@ try {
     title: 'ทดสอบการแสดงผลภาษาไทย',
     theme: 'retro',
     case_text: '',
-    case_images: smokeImage ? [{ id:'image-check', filename:'image-check.png', originalName:'ภาพกรณีศึกษา.png', localPath:smokeImage, highlights:[{ id:'highlight-check', x:18, y:22, width:34, height:12 }] }] : [],
+    case_images: [{ id:'image-check', filename:'image-check.png', originalName:'ภาพกรณีศึกษา.png', localPath:smokeImage || browserFixturePath, highlights:[{ id:'highlight-check', x:18, y:22, width:34, height:12 }] }],
     terms: [{ id:'term-check', name:'หายใจลำบาก', meaning:'อาการไม่สบายขณะหายใจ' }],
     timeline: [{ id:'time-check', content:'อาการแย่ลง', durationText:'2 สัปดาห์ก่อน', colorTheme:{ name:'Slate', bg:'#f1f5f9', text:'#334155', border:'#94a3b8' } }],
     problems: [{ id:'prob-check', text:'หายใจลำบากมากขึ้น', status:'none', hypotheses:[{ id:'hyp-check', text:'การติดเชื้อในปอด', status:'none', validation:'wrong', checked:false }] }],
@@ -132,6 +137,8 @@ try {
   const invalidFieldRejected = await evaluate(client, `(async () => { try { await window.__TAURI__.core.invoke('save_session_field', { fieldName:'unsafe_field', jsonValue:'null' }); return false; } catch (error) { return String(error).includes('Unsupported session field'); } })()`);
   if (!invalidFieldRejected) throw new Error('Native field allow-list did not reject an unsafe field.');
 
+  await evaluate(client, `location.hash = '#/settings'`);
+  await delay(100);
   await client.send('Page.reload');
   await delay(800);
   const expectedRoutes = {
@@ -142,19 +149,45 @@ try {
   for (const [route, expectedHeading] of Object.entries(expectedRoutes)) {
     await evaluate(client, `location.hash = '#/${route}'`);
     await delay(180);
-    routeResults[route] = await evaluate(client, `({ heading:document.querySelector('#page h2')?.textContent, text:document.querySelector('#page')?.innerText })`);
+    routeResults[route] = await evaluate(client, `({ heading:document.querySelector('#page h2')?.textContent, text:document.querySelector('#page')?.innerText, controlValues:[...document.querySelectorAll('#page input,#page textarea,#page select')].map(control => control.value).join(' ') })`);
     if (routeResults[route].heading !== expectedHeading) throw new Error(`Route ${route} rendered ${routeResults[route].heading} instead of ${expectedHeading}.`);
   }
   if (routeResults.case.text.includes('Clinical narrative') || await evaluate(client, `Boolean(document.querySelector('#case-editor,.toolbar,.pin,.pin-index'))`)) throw new Error('Removed narrative or pin controls are still present.');
-  if (!routeResults.terms.text.includes('หายใจลำบาก') || !routeResults.timeline.text.includes('อาการแย่ลง')) throw new Error('Thai Act 1 data did not render.');
+  if (!`${routeResults.terms.text} ${routeResults.terms.controlValues}`.includes('หายใจลำบาก') || !`${routeResults.timeline.text} ${routeResults.timeline.controlValues}`.includes('อาการแย่ลง')) throw new Error('Thai Act 1 data did not render.');
   if (!routeResults.problems.text.includes('Wrong') || !routeResults.verification.text.includes('Wrong')) throw new Error('Act 1/Act 2 hypothesis status was not synchronized.');
   if (!routeResults.randomizer.text.includes(testMemberName) || !routeResults.objectives.text.includes('เปรียบเทียบสาเหตุของอาการหายใจลำบาก')) throw new Error('Thai Act 2 assignment or objective mapping did not render.');
+
+  await evaluate(client, `location.hash = '#/terms'`);
+  await delay(180);
+  const termEntry = await evaluate(client, `(() => { const input=document.getElementById('term-input'); input.value='หัวใจเต้นเร็ว'; input.dispatchEvent(new KeyboardEvent('keydown',{ key:'Enter', bubbles:true })); return { modal:Boolean(document.querySelector('.modal-backdrop')) }; })()`);
+  await delay(120);
+  if (termEntry.modal || !await evaluate(client, `document.querySelectorAll('[data-term-name]').length === 2`)) throw new Error('Term entry did not add inline with Enter.');
+
+  await evaluate(client, `location.hash = '#/timeline'`);
+  await delay(180);
+  const timelineEntry = await evaluate(client, `(() => { document.getElementById('add-event').click(); const cards=[...document.querySelectorAll('[data-event-card]')]; const card=cards.at(-1); const textarea=card?.querySelector('[data-event-content]'); if (textarea) { textarea.value='ผลตรวจเลือดใหม่'; textarea.dispatchEvent(new Event('input',{ bubbles:true })); } card?.querySelector('[data-color="amber"]')?.click(); return { cards:cards.length, modal:Boolean(document.querySelector('.modal-backdrop')), hasConnector:Boolean(document.querySelector('[data-event-duration]')) }; })()`);
+  await delay(120);
+  if (timelineEntry.cards !== 2 || timelineEntry.modal || !timelineEntry.hasConnector) throw new Error(`Timeline did not use direct cards: ${JSON.stringify(timelineEntry)}`);
+
+  await evaluate(client, `location.hash = '#/problems'`);
+  await delay(180);
+  const problemEntry = await evaluate(client, `(() => { const input=document.getElementById('problem-input'); input.value='ไข้สูง'; input.dispatchEvent(new KeyboardEvent('keydown',{ key:'Enter', bubbles:true })); const hypothesis=document.getElementById('hypothesis-input'); hypothesis.value='ภาวะติดเชื้อ'; hypothesis.dispatchEvent(new KeyboardEvent('keydown',{ key:'Enter', bubbles:true })); return { modal:Boolean(document.querySelector('.modal-backdrop')), problems:document.querySelectorAll('[data-problem]').length, hypotheses:document.querySelectorAll('[data-cycle]').length }; })()`);
+  await delay(120);
+  if (problemEntry.modal || problemEntry.problems !== 2 || problemEntry.hypotheses !== 1) throw new Error(`Problem or hypothesis Enter-to-add failed: ${JSON.stringify(problemEntry)}`);
+
+  await evaluate(client, `location.hash = '#/objectives'`);
+  await delay(180);
+  const objectiveEntry = await evaluate(client, `(() => { const input=document.getElementById('objective-input'); input.value='วิเคราะห์แนวทางรักษา'; input.dispatchEvent(new KeyboardEvent('keydown',{ key:'Enter', bubbles:true })); const selects=[...document.querySelectorAll('[data-link-lo]')]; const select=selects.at(-1); const available=[...select.options].find(option => option.value && !option.disabled); select.value=available?.value || ''; select.dispatchEvent(new Event('change',{ bubbles:true })); return { objectives:selects.length, kind:select?.tagName, checkboxes:document.querySelectorAll('[data-link-lo][type="checkbox"]').length, unavailable:[...select.options].filter(option => option.disabled).length }; })()`);
+  await delay(800);
+  const inlineSession = await evaluate(client, invokeExpression('get_session'));
+  const linkedProblems = inlineSession.objectives.flatMap(objective => objective.linkedProblemIds);
+  if (objectiveEntry.objectives !== 2 || objectiveEntry.kind !== 'SELECT' || objectiveEntry.checkboxes || objectiveEntry.unavailable !== 1 || inlineSession.objectives.some(objective => objective.linkedProblemIds.length > 1) || new Set(linkedProblems).size !== linkedProblems.length) throw new Error(`One-to-one problem/objective mapping failed: ${JSON.stringify(objectiveEntry)}`);
 
   await evaluate(client, `location.hash = '#/problems'`);
   await delay(180);
   const autofillState = await evaluate(client, `({ controls:[...document.querySelectorAll('input,textarea,select')].every(control => control.autocomplete === 'off') })`);
   if (!autofillState.controls) throw new Error(`A workspace control still allows saved-info autofill: ${JSON.stringify(autofillState)}`);
-  await evaluate(client, `document.getElementById('add-problem').click()`);
+  await evaluate(client, `document.querySelector('[data-edit-problem]').click()`);
   await delay(50);
   const modalAutofillState = await evaluate(client, `({ form:document.querySelector('#modal-form')?.autocomplete, controls:[...document.querySelectorAll('#modal-root input,#modal-root textarea,#modal-root select')].every(control => control.autocomplete === 'off') })`);
   if (modalAutofillState.form !== 'off' || !modalAutofillState.controls) throw new Error(`A modal control still allows saved-info autofill: ${JSON.stringify(modalAutofillState)}`);
@@ -169,17 +202,19 @@ try {
   if (narrowState.shell !== 'block' || narrowState.sidebar !== 'fixed' || narrowState.mainWidth < 900 || narrowState.menu === 'none' || narrowState.overflow || narrowState.scrollX !== 0) throw new Error(`Narrow workspace can move or collapse: ${JSON.stringify(narrowState)}`);
   await client.send('Emulation.clearDeviceMetricsOverride');
 
-  if (smokeImage) {
+  {
     await evaluate(client, `location.hash = '#/case'`);
     await delay(180);
     await evaluate(client, `document.querySelector('[data-image]').click()`);
     let imageState;
     for (let attempt = 0; attempt < 20; attempt++) {
-      imageState = await evaluate(client, `(() => { const image = document.querySelector('.highlight-image-wrap img'); return image && { complete:image.complete, naturalWidth:image.naturalWidth, alt:image.alt, highlights:document.querySelectorAll('.image-highlight').length, inputs:document.querySelectorAll('#modal-root input, #modal-root textarea').length }; })()`);
+      imageState = await evaluate(client, `(() => { const image = document.querySelector('.highlight-image-wrap img'); return image && { complete:image.complete, naturalWidth:image.naturalWidth, renderedWidth:image.getBoundingClientRect().width, alt:image.alt, highlights:document.querySelectorAll('.image-highlight').length, inputs:document.querySelectorAll('#modal-root input, #modal-root textarea').length, zoomControls:document.querySelectorAll('.image-zoom-toolbar button').length }; })()`);
       if (imageState?.complete && imageState.naturalWidth > 0) break;
       await delay(100);
     }
-    if (!imageState?.complete || imageState.naturalWidth < 1 || imageState.alt !== 'ภาพกรณีศึกษา.png' || imageState.highlights !== 1 || imageState.inputs !== 0) throw new Error(`Case image/highlight editor failed: ${JSON.stringify(imageState)}`);
+    if (!imageState?.complete || imageState.naturalWidth < 1 || imageState.alt !== 'ภาพกรณีศึกษา.png' || imageState.highlights !== 1 || imageState.inputs !== 0 || imageState.zoomControls !== 3) throw new Error(`Case image/highlight editor failed: ${JSON.stringify(imageState)}`);
+    const zoomState = await evaluate(client, `(() => { const before=document.querySelector('#highlight-image').getBoundingClientRect().width; document.querySelector('#zoom-in').click(); const after=document.querySelector('#highlight-image').getBoundingClientRect().width; return { before, after, readout:document.querySelector('#zoom-readout').textContent, highlights:document.querySelectorAll('.image-highlight').length }; })()`);
+    if (zoomState.after <= zoomState.before || zoomState.readout !== '125%' || zoomState.highlights !== 1) throw new Error(`Case image zoom failed: ${JSON.stringify(zoomState)}`);
     await evaluate(client, `document.querySelector('[data-close]').click()`);
   }
 
