@@ -14,9 +14,10 @@ const app = spawn(executable, [], {
   env: {
     ...process.env,
     VIBEPBL_DATA_DIR: dataDirectory,
+    WEBVIEW2_USER_DATA_FOLDER: join(dataDirectory, 'webview'),
     WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${port}`
   },
-  stdio: 'ignore',
+  stdio: ['ignore', 'pipe', 'pipe'],
   windowsHide: true
 });
 
@@ -24,6 +25,15 @@ const delay = milliseconds => new Promise(resolveDelay => setTimeout(resolveDela
 
 async function findPage() {
   for (let attempt = 0; attempt < 40; attempt++) {
+    if (app.exitCode !== null) {
+      const stderr = await new Promise(resolveText => {
+        let output = '';
+        app.stderr?.on('data', chunk => { output += chunk; });
+        app.stderr?.on('end', () => resolveText(output));
+        setTimeout(() => resolveText(output), 100);
+      });
+      throw new Error(`The native app exited before exposing its WebView (code ${app.exitCode})${stderr ? `: ${stderr}` : '.'}`);
+    }
     try {
       const pages = await fetch(`http://127.0.0.1:${port}/json/list`).then(response => response.json());
       const page = pages.find(item => item.type === 'page' && item.webSocketDebuggerUrl && item.url && item.url !== 'about:blank');
@@ -140,8 +150,18 @@ try {
   if (!routeResults.problems.text.includes('Wrong') || !routeResults.verification.text.includes('Wrong')) throw new Error('Act 1/Act 2 hypothesis status was not synchronized.');
   if (!routeResults.randomizer.text.includes(testMemberName) || !routeResults.objectives.text.includes('เปรียบเทียบสาเหตุของอาการหายใจลำบาก')) throw new Error('Thai Act 2 assignment or objective mapping did not render.');
 
-  const retroState = await evaluate(client, `({ theme:document.documentElement.dataset.theme, shell:getComputedStyle(document.querySelector('.app-shell')).display, sidebar:getComputedStyle(document.querySelector('.sidebar')).position, overflow:document.documentElement.scrollWidth > document.documentElement.clientWidth })`);
-  if (retroState.theme !== 'retro' || retroState.shell !== 'grid' || retroState.sidebar !== 'sticky' || retroState.overflow) throw new Error(`Retro theme changed the app structure or overflowed: ${JSON.stringify(retroState)}`);
+  await evaluate(client, `location.hash = '#/problems'`);
+  await delay(180);
+  const autofillState = await evaluate(client, `({ controls:[...document.querySelectorAll('input,textarea,select')].every(control => control.autocomplete === 'off') })`);
+  if (!autofillState.controls) throw new Error(`A workspace control still allows saved-info autofill: ${JSON.stringify(autofillState)}`);
+  await evaluate(client, `document.getElementById('add-problem').click()`);
+  await delay(50);
+  const modalAutofillState = await evaluate(client, `({ form:document.querySelector('#modal-form')?.autocomplete, controls:[...document.querySelectorAll('#modal-root input,#modal-root textarea,#modal-root select')].every(control => control.autocomplete === 'off') })`);
+  if (modalAutofillState.form !== 'off' || !modalAutofillState.controls) throw new Error(`A modal control still allows saved-info autofill: ${JSON.stringify(modalAutofillState)}`);
+  await evaluate(client, `document.querySelector('[data-cancel]').click()`);
+
+  const retroState = await evaluate(client, `(() => { window.scrollTo(0,700); const bodyStyle=getComputedStyle(document.body); const mainStyle=getComputedStyle(document.querySelector('.main-shell')); return { theme:document.documentElement.dataset.theme, shell:getComputedStyle(document.querySelector('.app-shell')).display, sidebar:getComputedStyle(document.querySelector('.sidebar')).position, bodyPosition:bodyStyle.position, bodyOverflow:bodyStyle.overflow, mainOverflowY:mainStyle.overflowY, overflow:document.documentElement.scrollWidth > document.documentElement.clientWidth, scrollY:window.scrollY }; })()`);
+  if (retroState.theme !== 'retro' || retroState.shell !== 'grid' || retroState.sidebar !== 'sticky' || retroState.bodyPosition !== 'fixed' || retroState.bodyOverflow !== 'hidden' || retroState.mainOverflowY !== 'auto' || retroState.overflow || retroState.scrollY !== 0) throw new Error(`Retro theme changed the app structure or the outer window can move: ${JSON.stringify(retroState)}`);
 
   await client.send('Emulation.setDeviceMetricsOverride', { width:1000, height:720, deviceScaleFactor:1, mobile:false });
   await delay(300);

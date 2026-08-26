@@ -16,6 +16,19 @@ let session;
 let members = [];
 let saveChain = Promise.resolve();
 
+function disableAutofill(root = document) {
+  const elements = [];
+  if (root.matches?.('form,input,textarea,select')) elements.push(root);
+  elements.push(...(root.querySelectorAll?.('form,input,textarea,select') || []));
+  elements.forEach(element => element.setAttribute('autocomplete', 'off'));
+}
+
+new MutationObserver(records => {
+  records.forEach(record => record.addedNodes.forEach(node => {
+    if (node.nodeType === Node.ELEMENT_NODE) disableAutofill(node);
+  }));
+}).observe(document.documentElement, { childList: true, subtree: true });
+
 async function start() {
   try { [session, members] = await Promise.all([API.getSession(), API.getMembers()]); }
   catch (error) { document.getElementById('page').innerHTML = `<div class="card"><h2>Could not open local workspace</h2><p>${esc(String(error))}</p></div>`; return; }
@@ -33,6 +46,7 @@ function render() {
   document.getElementById('session-title').textContent = session.title;
   document.getElementById('sidebar').classList.remove('open');
   (routes[route] || renderCase)(context());
+  disableAutofill(document);
 }
 
 function context() {
