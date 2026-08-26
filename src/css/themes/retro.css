@@ -1,48 +1,68 @@
-html[data-theme="retro"]{--bg-app:#fff;--bg-card:#fff;--bg-sidebar:#fff;--text-main:#000;--text-muted:#333;--text-sidebar:#000;--text-sidebar-muted:#0000ee;--sidebar-border:#888;--sidebar-card:#fff;--sidebar-active:#fff;--border-color:#888;--primary-accent:#0000aa;--primary-accent-2:#0000ee;--button-soft:#ddd;--button-border:#777;--input-bg:#fff;--shadow:none;--status-confirmed-bg:#fff;--status-confirmed-border:#008000;--status-confirmed-text:#006400;--status-wrong-bg:#fff;--status-wrong-border:#b00000;--status-wrong-text:#b00000;--status-investigating-bg:#fff;--status-investigating-border:#9a6500;--status-investigating-text:#765000;font-family:Arial,Helvetica,Tahoma,sans-serif;background:#fff}
-html[data-theme="retro"] body{border-top:1px solid #67a9ff;background:#fff;font-size:14px}
-html[data-theme="retro"] .app-shell{display:block;min-height:100vh}
-html[data-theme="retro"] .sidebar{position:static;width:min(1050px,calc(100% - 32px));height:auto;margin:0 auto;display:block;border:0;background:#fff;color:#000;transform:none}
-html[data-theme="retro"] .brand{display:block;text-align:center;border:0;padding:38px 0 18px}
-html[data-theme="retro"] .brand-mark,html[data-theme="retro"] .local-badge{display:none}
-html[data-theme="retro"] .brand strong{display:block;font-size:34px;letter-spacing:3px;color:#000}
-html[data-theme="retro"] .brand small{margin-top:7px;color:#000;font-weight:700;font-size:14px}
-html[data-theme="retro"] nav{display:flex;align-items:flex-start;justify-content:center;flex-wrap:wrap;gap:8px 28px;padding:12px 0 16px;overflow:visible}
-html[data-theme="retro"] .nav-label{display:none}
-html[data-theme="retro"] nav a,html[data-theme="retro"] .settings-link{display:block;width:auto;margin:0;padding:4px 8px;border:0;border-radius:0;background:#fff;color:#0000ee;text-decoration:underline;font-weight:700;font-size:14px;box-shadow:none}
-html[data-theme="retro"] nav a span,html[data-theme="retro"] .settings-link span{display:none}
-html[data-theme="retro"] nav a:hover,html[data-theme="retro"] nav a.active,html[data-theme="retro"] .settings-link:hover,html[data-theme="retro"] .settings-link.active{background:#fff;color:#0000aa;box-shadow:none}
-html[data-theme="retro"] .settings-link{width:max-content;margin:0 auto 16px}
-html[data-theme="retro"] .main-shell{width:min(1050px,calc(100% - 32px));margin:0 auto}
-html[data-theme="retro"] .topbar{position:static;height:auto;min-height:52px;margin:0 0 22px;padding:8px 12px;border:1px solid #888;background:#fff}
-html[data-theme="retro"] .topbar h1{font-size:15px;letter-spacing:0;margin:1px 0 0}
-html[data-theme="retro"] .eyebrow{font-size:10px;color:#000;letter-spacing:.06em}
-html[data-theme="retro"] .icon-button{display:none}
-html[data-theme="retro"] .page{max-width:none;padding:0 0 70px}
-html[data-theme="retro"] .page-header{display:block;text-align:center;margin:0 auto 28px}
-html[data-theme="retro"] .page-header h2{font-size:28px;letter-spacing:2px;margin-bottom:8px}
-html[data-theme="retro"] .page-header p{max-width:700px;margin:auto;color:#000;line-height:1.45}
-html[data-theme="retro"] .header-actions{justify-content:center;margin-top:16px}
-html[data-theme="retro"] .card{border:1px solid #888;border-radius:0;padding:14px;background:#fff;box-shadow:none}
-html[data-theme="retro"] .card+.card{margin-top:24px}
-html[data-theme="retro"] .section-title{font:700 15px Arial,Helvetica,sans-serif;text-transform:uppercase;margin-bottom:13px}
-html[data-theme="retro"] .section-help{color:#333;font-style:italic}
-html[data-theme="retro"] .button,html[data-theme="retro"] .icon-button{border:2px outset #eee;border-radius:0;padding:5px 12px;background:#d4d4d4;color:#000;font-weight:700;text-transform:uppercase;box-shadow:none;filter:none}
-html[data-theme="retro"] .button:active{border-style:inset}
-html[data-theme="retro"] .button-primary{background:#000080;color:#fff;border-color:#aeb6df}
-html[data-theme="retro"] .button-danger{background:#d4d4d4;color:#900;border-color:#eee}
-html[data-theme="retro"] .button-ghost{border:0;background:transparent;color:#0000ee;text-transform:none}
-html[data-theme="retro"] .input,html[data-theme="retro"] .textarea,html[data-theme="retro"] .select{border:2px inset #eee;border-radius:0;padding:5px 7px;background:#fff;box-shadow:none}
+html[data-theme="retro"]{
+  --bg-app:#c0c0c0;
+  --bg-card:#fff;
+  --bg-sidebar:#000066;
+  --text-main:#000;
+  --text-muted:#333;
+  --text-sidebar:#fff;
+  --text-sidebar-muted:#fff;
+  --sidebar-border:#fff;
+  --sidebar-card:#000080;
+  --sidebar-active:#0000aa;
+  --border-color:#808080;
+  --primary-accent:#000080;
+  --primary-accent-2:#0000cc;
+  --button-soft:#d4d0c8;
+  --button-border:#808080;
+  --input-bg:#fff;
+  --shadow:none;
+  --status-confirmed-bg:#fff;
+  --status-confirmed-border:#008000;
+  --status-confirmed-text:#006400;
+  --status-wrong-bg:#fff;
+  --status-wrong-border:#b00000;
+  --status-wrong-text:#b00000;
+  --status-investigating-bg:#fff;
+  --status-investigating-border:#9a6500;
+  --status-investigating-text:#765000;
+  font-family:Arial,Helvetica,Tahoma,sans-serif;
+}
+html[data-theme="retro"] body{background:#c0c0c0;font-size:14px}
+html[data-theme="retro"] .sidebar{border-right:2px ridge #fff}
+html[data-theme="retro"] .brand{border-bottom:2px groove #fff}
+html[data-theme="retro"] .brand-mark{border:2px outset #fff;border-radius:0;background:#0000aa;box-shadow:none}
+html[data-theme="retro"] .brand strong{font-family:"Times New Roman",Times,serif;letter-spacing:.04em}
+html[data-theme="retro"] .brand small,html[data-theme="retro"] .local-badge small{color:#fff}
+html[data-theme="retro"] .local-badge{border:2px inset #fff;border-radius:0;background:#000080}
+html[data-theme="retro"] nav a,html[data-theme="retro"] .settings-link{border-radius:0;color:#fff;text-decoration:underline}
+html[data-theme="retro"] nav a:hover,html[data-theme="retro"] .settings-link:hover{background:#000099;color:#ff0}
+html[data-theme="retro"] nav a.active,html[data-theme="retro"] .settings-link.active{background:#0000aa;color:#ff0;box-shadow:inset 4px 0 #ff0}
+html[data-theme="retro"] .nav-label{color:#fff;border-bottom:1px dotted #fff;padding-bottom:5px}
+html[data-theme="retro"] .topbar{border-bottom:2px groove #fff;background:#d4d0c8}
+html[data-theme="retro"] .topbar h1,html[data-theme="retro"] .page-header h2{font-family:"Times New Roman",Times,serif;letter-spacing:0}
+html[data-theme="retro"] .eyebrow{color:#000080}
+html[data-theme="retro"] .card{border:2px outset #fff;border-radius:0;background:#fff;box-shadow:none}
+html[data-theme="retro"] .section-title{font-family:"Times New Roman",Times,serif;font-size:19px}
+html[data-theme="retro"] .button,html[data-theme="retro"] .icon-button{border:2px outset #fff;border-radius:0;padding:7px 13px;background:#d4d0c8;color:#000;font-weight:700;box-shadow:none;filter:none}
+html[data-theme="retro"] .button:active,html[data-theme="retro"] .icon-button:active{border-style:inset}
+html[data-theme="retro"] .button-primary{background:#000080;color:#fff;border-color:#fff}
+html[data-theme="retro"] .button-secondary{background:#d4d0c8;color:#000080}
+html[data-theme="retro"] .button-danger{background:#d4d0c8;color:#900;border-color:#fff}
+html[data-theme="retro"] .button-ghost{border:0;background:transparent;color:#000080}
+html[data-theme="retro"] .input,html[data-theme="retro"] .textarea,html[data-theme="retro"] .select{border:2px inset #fff;border-radius:0;padding:8px 9px;background:#fff;box-shadow:none}
+html[data-theme="retro"] .input:focus,html[data-theme="retro"] .textarea:focus,html[data-theme="retro"] .select:focus{outline:1px dotted #000080;outline-offset:1px;box-shadow:none}
 html[data-theme="retro"] .list-item,html[data-theme="retro"] .objective-card,html[data-theme="retro"] .verification-problem,html[data-theme="retro"] .assignment-card,html[data-theme="retro"] .timeline-card,html[data-theme="retro"] .image-card{border-radius:0;box-shadow:none}
-html[data-theme="retro"] .image-grid{grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
-html[data-theme="retro"] .image-card button.image-open{height:190px;background:#eee;border-bottom:1px solid #888}
-html[data-theme="retro"] .empty-state{border:1px dashed #aaa;padding:34px 18px}
-html[data-theme="retro"] .empty-icon{display:none}
-html[data-theme="retro"] .settings-grid{gap:18px}
-html[data-theme="retro"] .theme-option,html[data-theme="retro"] .member-chip,html[data-theme="retro"] .check-chip,html[data-theme="retro"] .status-badge{border-radius:0;box-shadow:none}
+html[data-theme="retro"] .code-badge,html[data-theme="retro"] .status-badge,html[data-theme="retro"] .member-chip,html[data-theme="retro"] .check-chip{border-radius:0}
+html[data-theme="retro"] .image-card button.image-open{background:#808080;border-bottom:2px groove #fff}
+html[data-theme="retro"] .empty-state{border:1px dashed #808080;background:#fff}
+html[data-theme="retro"] .empty-icon{border:2px outset #fff;border-radius:0;background:#d4d0c8;color:#000080}
+html[data-theme="retro"] .theme-option{border:2px outset #fff;border-radius:0;background:#d4d0c8;box-shadow:none}
+html[data-theme="retro"] .theme-option.active{border-style:inset;background:#fff;box-shadow:none}
 html[data-theme="retro"] .theme-swatch i{border-radius:0}
-html[data-theme="retro"] .modal{border:2px outset #eee;border-radius:0;box-shadow:8px 8px 0 rgb(0 0 0/.3)}
-html[data-theme="retro"] .modal-backdrop{background:rgb(255 255 255/.76)}
-html[data-theme="retro"] .highlight-stage{border:1px solid #888;border-radius:0;background:#eee}
-html[data-theme="retro"] .toast{border:2px outset #eee;border-radius:0;background:#000080}
-html[data-theme="retro"] .lock-banner{border-radius:0}
-@media(max-width:700px){html[data-theme="retro"] .brand{padding-top:24px}html[data-theme="retro"] .brand strong{font-size:27px}html[data-theme="retro"] nav{gap:5px 10px}html[data-theme="retro"] .topbar-actions{flex-wrap:wrap;justify-content:flex-end}html[data-theme="retro"] .settings-grid{display:block}}
+html[data-theme="retro"] .modal{border:2px outset #fff;border-radius:0;box-shadow:8px 8px 0 rgb(0 0 0/.3)}
+html[data-theme="retro"] .modal-header{background:#000080;color:#fff}
+html[data-theme="retro"] .modal-header .button-ghost{color:#fff}
+html[data-theme="retro"] .modal-backdrop{background:rgb(0 0 0/.55)}
+html[data-theme="retro"] .highlight-stage{border:2px inset #fff;border-radius:0;background:#808080}
+html[data-theme="retro"] .toast{border:2px outset #fff;border-radius:0;background:#000080}
+html[data-theme="retro"] .lock-banner,html[data-theme="retro"] .random-stage{border-radius:0}

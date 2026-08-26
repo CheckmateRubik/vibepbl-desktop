@@ -1,3 +1,5 @@
+use std::{fs, path::Path};
+
 use rusqlite::{params, Connection};
 use tauri::State;
 
@@ -106,15 +108,52 @@ pub fn save_session_field(
 
 #[tauri::command]
 pub fn reset_session(state: State<'_, AppState>) -> Result<(), String> {
-    let connection = state
-        .db
-        .lock()
-        .map_err(|_| "Database is busy".to_string())?;
-    connection
-        .execute(
-            "UPDATE session SET title='PBL Session', theme='default', case_text='', case_images='[]', terms='[]', timeline='[]', problems='[]', objectives='[]', presenter_assignments='{}', is_act1_completed=0, updated_at=CURRENT_TIMESTAMP WHERE id=1",
-            [],
-        )
-        .map_err(|error| error.to_string())?;
-    Ok(())
+    {
+        let connection = state
+            .db
+            .lock()
+            .map_err(|_| "Database is busy".to_string())?;
+        connection
+            .execute(
+                "UPDATE session SET title='PBL Session', theme='default', case_text='', case_images='[]', terms='[]', timeline='[]', problems='[]', objectives='[]', presenter_assignments='{}', is_act1_completed=0, updated_at=CURRENT_TIMESTAMP WHERE id=1",
+                [],
+            )
+            .map_err(|error| error.to_string())?;
+    }
+    clear_private_images(&state.app_data_dir)
+}
+
+fn clear_private_images(app_data_dir: &Path) -> Result<(), String> {
+    let image_directory = app_data_dir.join("images");
+    if image_directory.exists() {
+        fs::remove_dir_all(&image_directory).map_err(|error| {
+            format!("Session was cleared, but private images could not be removed: {error}")
+        })?;
+    }
+    fs::create_dir_all(&image_directory)
+        .map_err(|error| format!("Could not recreate the private image folder: {error}"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::clear_private_images;
+    use std::fs;
+    use uuid::Uuid;
+
+    #[test]
+    fn reset_removes_only_private_image_copies() {
+        let root = std::env::temp_dir().join(format!("vibepbl-reset-{}", Uuid::new_v4()));
+        let image_directory = root.join("app-data").join("images");
+        let original = root.join("original.png");
+        fs::create_dir_all(&image_directory).unwrap();
+        fs::write(image_directory.join("copied.png"), b"private copy").unwrap();
+        fs::write(&original, b"original image").unwrap();
+
+        clear_private_images(&root.join("app-data")).unwrap();
+
+        assert!(image_directory.is_dir());
+        assert_eq!(fs::read_dir(&image_directory).unwrap().count(), 0);
+        assert_eq!(fs::read(&original).unwrap(), b"original image");
+        fs::remove_dir_all(root).unwrap();
+    }
 }

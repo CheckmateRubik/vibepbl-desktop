@@ -1,4 +1,9 @@
 /* Professional baseline refinements loaded after the original component sheet. */
+html,body{width:100%;max-width:100%;overflow-x:hidden;overscroll-behavior-x:none}
+body{touch-action:pan-y}
+#app,.app-shell,.main-shell,.page{min-width:0;max-width:100%}
+.main-shell,.page{overflow-x:clip}
+img,a{-webkit-user-drag:none}
 .app-shell{grid-template-columns:252px minmax(0,1fr)}
 .brand{padding:18px 20px}.brand-mark{width:42px;height:42px;border-radius:10px;box-shadow:none}
 .local-badge{margin:14px;border-radius:9px;padding:11px 12px}
@@ -30,5 +35,5 @@ nav a,.settings-link{border-radius:7px;padding:10px 12px;font-size:13px}
 .print-report .print-image-wrap img{margin:0}
 .print-report .print-highlight{position:absolute;display:block;border:2px solid #c47f00;background:rgb(250 204 21/.3)}
 .print-report .highlight-summary{text-align:center;font:9pt Arial,sans-serif;color:#555;margin:6px 0 0}
-@media(max-width:1050px){.sidebar{width:252px}.page{padding:24px}}
+@media(max-width:1050px){.app-shell{display:block}.main-shell{width:100%}.sidebar{width:252px}.page{padding:24px}}
 @media(max-width:700px){.highlight-footer{align-items:flex-start;flex-direction:column}.highlight-actions{width:100%;justify-content:space-between}.highlight-stage{min-height:260px;padding:8px}}

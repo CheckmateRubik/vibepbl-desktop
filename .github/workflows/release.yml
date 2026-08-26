@@ -35,12 +35,61 @@ jobs:
         run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features --locked -- -D warnings
       - name: Test native code
         run: cargo test --manifest-path src-tauri/Cargo.toml --all-targets --all-features --locked
-      - uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build standalone Windows executable
+        if: runner.os == 'Windows'
+        run: npm run tauri -- build --no-bundle
+      - name: Name standalone Windows executable
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json | ConvertFrom-Json).version
+          Copy-Item "src-tauri/target/release/vibepbl-desktop.exe" "VibePBL.Desktop_${version}_Windows-x64-Portable.exe"
+      - name: Store standalone Windows executable
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
         with:
-          tagName: v__VERSION__
-          releaseName: VibePBL Desktop __VERSION__
-          releaseBody: Offline desktop installers for VibePBL Secretary Edition.
-          releaseDraft: false
-          prerelease: false
+          name: windows-portable
+          path: VibePBL.Desktop_*_Windows-x64-Portable.exe
+          if-no-files-found: error
+
+      - name: Build macOS DMG
+        if: runner.os == 'macOS'
+        run: npm run tauri -- build --bundles dmg
+      - name: Store macOS DMG
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-dmg
+          path: src-tauri/target/release/bundle/dmg/*.dmg
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+      - name: Publish release assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            TAG="${GITHUB_REF_NAME}"
+          else
+            TAG="v${VERSION}"
+          fi
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --title "VibePBL Desktop ${VERSION}" --notes "Offline VibePBL downloads: a standalone Windows executable and a macOS DMG."
+          else
+            gh release create "$TAG" --title "VibePBL Desktop ${VERSION}" --notes "Offline VibePBL downloads: a standalone Windows executable and a macOS DMG."
+          fi
+          gh release upload "$TAG" release-assets/* --clobber

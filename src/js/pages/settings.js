@@ -5,7 +5,7 @@ const themes = [
   ['default','Clinical Light',['#10172c','#3672f4','#f6f8fc']], ['dark','Dark Mode',['#080d17','#6ea0ff','#151d2d']],
   ['midnight','Midnight & Gold',['#102a43','#a87316','#f1f5fa']], ['medical','Medical Minimal',['#263a3d','#287e82','#f3f7f7']],
   ['sepia','Warm Sepia',['#47372c','#9b5e35','#f5efe4']], ['contrast','High Contrast',['#000','#0047cc','#fff']],
-  ['retro','Retro Web 2000',['#fff','#0000ee','#c0c0c0']]
+  ['retro','Retro Web 1.0',['#000066','#0000aa','#c0c0c0']]
 ];
 
 export function renderSettings(ctx) {

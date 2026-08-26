@@ -7,11 +7,11 @@ There are no accounts, rooms, cloud services, analytics, or internet requirement
 ## Install for normal use
 
 1. Open the project’s **GitHub Releases** page.
-2. On Windows, download the `.exe` installer. On macOS, download the `.dmg` for your processor.
-3. Double-click the downloaded file and follow the operating-system prompts.
+2. On Windows, download the `Windows-x64-Portable.exe`. On macOS, download the `.dmg` for your processor.
+3. Double-click the Windows executable to run it without installation, or open the macOS DMG and drag the app into Applications.
 4. Launch **VibePBL Desktop** from the Start menu or Applications folder.
 
-End users do not need Docker, Node.js, Rust, a terminal, an account, or internet access after downloading the installer.
+End users do not need Docker, Node.js, Rust, a terminal, an account, or internet access after downloading the app. The portable Windows executable stores session data in the same private AppData location as the installed version.
 
 ## Secretary workflow
 
@@ -88,7 +88,7 @@ VibePBL is an educational organization tool. It does not provide medical advice,
 
 ## Releasing
 
-The included GitHub Actions workflow builds Windows and macOS bundles when a version tag such as `v1.0.0` is pushed. Configure repository Actions permissions to allow release creation, then attach any required code-signing credentials as repository secrets. Unsigned builds may trigger operating-system warnings.
+The included GitHub Actions workflow builds a standalone Windows executable and a macOS DMG when a version tag such as `v1.0.0` is pushed. Windows MSI and NSIS installers are intentionally not produced. Configure repository Actions permissions to allow release creation, then attach any required code-signing credentials as repository secrets. Unsigned builds may trigger operating-system warnings.
 
 ## License
 

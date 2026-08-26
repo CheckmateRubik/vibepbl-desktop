@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from 'node:fs/promises';
+import { access, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { resolve, join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -6,6 +6,9 @@ import { tmpdir } from 'node:os';
 const executable = resolve(process.argv[2] || 'src-tauri/target/release/vibepbl-desktop.exe');
 const smokeImage = process.env.VIBEPBL_SMOKE_IMAGE;
 const dataDirectory = await mkdtemp(join(tmpdir(), 'vibepbl-native-check-'));
+const resetSentinel = join(dataDirectory, 'images', 'reset-check.png');
+await mkdir(join(dataDirectory, 'images'), { recursive:true });
+await writeFile(resetSentinel, 'private image copy');
 const port = 9333;
 const app = spawn(executable, [], {
   env: {
@@ -137,13 +140,14 @@ try {
   if (!routeResults.problems.text.includes('Wrong') || !routeResults.verification.text.includes('Wrong')) throw new Error('Act 1/Act 2 hypothesis status was not synchronized.');
   if (!routeResults.randomizer.text.includes(testMemberName) || !routeResults.objectives.text.includes('เปรียบเทียบสาเหตุของอาการหายใจลำบาก')) throw new Error('Thai Act 2 assignment or objective mapping did not render.');
 
-  const retroState = await evaluate(client, `({ theme:document.documentElement.dataset.theme, shell:getComputedStyle(document.querySelector('.app-shell')).display, sidebar:getComputedStyle(document.querySelector('.sidebar')).position })`);
-  if (retroState.theme !== 'retro' || retroState.shell !== 'block' || retroState.sidebar !== 'static') throw new Error(`Retro theme did not change the layout: ${JSON.stringify(retroState)}`);
+  const retroState = await evaluate(client, `({ theme:document.documentElement.dataset.theme, shell:getComputedStyle(document.querySelector('.app-shell')).display, sidebar:getComputedStyle(document.querySelector('.sidebar')).position, overflow:document.documentElement.scrollWidth > document.documentElement.clientWidth })`);
+  if (retroState.theme !== 'retro' || retroState.shell !== 'grid' || retroState.sidebar !== 'sticky' || retroState.overflow) throw new Error(`Retro theme changed the app structure or overflowed: ${JSON.stringify(retroState)}`);
 
-  await evaluate(client, `document.getElementById('reset-session').click()`);
-  const resetDialog = await evaluate(client, `({ title:document.querySelector('.modal-header strong')?.textContent, inputs:document.querySelectorAll('#modal-root input').length, confirm:document.querySelector('[data-confirm]')?.textContent })`);
-  if (resetDialog.title !== 'Delete this session?' || resetDialog.inputs !== 0 || !resetDialog.confirm?.includes('Delete session')) throw new Error(`Reset confirmation is incorrect: ${JSON.stringify(resetDialog)}`);
-  await evaluate(client, `document.querySelector('[data-cancel]').click()`);
+  await client.send('Emulation.setDeviceMetricsOverride', { width:1000, height:720, deviceScaleFactor:1, mobile:false });
+  await delay(300);
+  const narrowState = await evaluate(client, `(() => { window.scrollTo({ left:700, top:window.scrollY }); const main=document.querySelector('.main-shell').getBoundingClientRect(); return { shell:getComputedStyle(document.querySelector('.app-shell')).display, sidebar:getComputedStyle(document.querySelector('.sidebar')).position, mainWidth:main.width, menu:getComputedStyle(document.querySelector('#sidebar-toggle')).display, overflow:document.documentElement.scrollWidth > document.documentElement.clientWidth, scrollX:window.scrollX }; })()`);
+  if (narrowState.shell !== 'block' || narrowState.sidebar !== 'fixed' || narrowState.mainWidth < 900 || narrowState.menu === 'none' || narrowState.overflow || narrowState.scrollX !== 0) throw new Error(`Narrow workspace can move or collapse: ${JSON.stringify(narrowState)}`);
+  await client.send('Emulation.clearDeviceMetricsOverride');
 
   if (smokeImage) {
     await evaluate(client, `location.hash = '#/case'`);
@@ -174,6 +178,23 @@ try {
       await delay(100);
     }
   }
+
+  await evaluate(client, `location.hash = '#/settings'`);
+  await delay(180);
+  await evaluate(client, `document.getElementById('reset-session').click()`);
+  const resetDialog = await evaluate(client, `({ title:document.querySelector('.modal-header strong')?.textContent, inputs:document.querySelectorAll('#modal-root input').length, confirm:document.querySelector('[data-confirm]')?.textContent })`);
+  if (resetDialog.title !== 'Delete this session?' || resetDialog.inputs !== 0 || !resetDialog.confirm?.includes('Delete session')) throw new Error(`Reset confirmation is incorrect: ${JSON.stringify(resetDialog)}`);
+  await evaluate(client, `document.querySelector('[data-confirm]').click()`);
+  for (let attempt = 0; attempt < 30; attempt++) {
+    if (await evaluate(client, `!document.querySelector('.modal-backdrop')`)) break;
+    await delay(100);
+  }
+  const resetSession = await evaluate(client, invokeExpression('get_session'));
+  if (resetSession.title !== 'PBL Session' || resetSession.caseImages.length || resetSession.terms.length || resetSession.timeline.length || resetSession.problems.length || resetSession.objectives.length || Object.keys(resetSession.presenterAssignments).length) throw new Error(`Reset did not clear the working session: ${JSON.stringify(resetSession)}`);
+  const sentinelDeleted = await access(resetSentinel).then(() => false, () => true);
+  if (!sentinelDeleted) throw new Error('Reset left a private image copy in app storage.');
+  const membersAfterReset = await evaluate(client, invokeExpression('get_members'));
+  if (!membersAfterReset.some(member => member.id === testMember.id)) throw new Error('Reset removed the persistent member roster.');
 
   await evaluate(client, invokeExpression('remove_member', { id:testMember.id }));
   const membersAfterRemove = await evaluate(client, invokeExpression('get_members'));
