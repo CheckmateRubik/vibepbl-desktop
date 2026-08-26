@@ -17,18 +17,28 @@
     <link rel="stylesheet" href="./css/themes/retro.css">
   </head>
   <body>
+    <div id="window-titlebar" class="window-titlebar" data-tauri-drag-region>
+      <div class="window-titlebar-app" data-tauri-drag-region>
+        <img src="./assets/app-icon.svg" alt="" data-tauri-drag-region>
+        <span data-tauri-drag-region>VibePBL Desktop</span>
+      </div>
+      <div class="window-controls" aria-label="Window controls">
+        <button id="window-minimize" class="window-control window-minimize" type="button" aria-label="Minimize window"><span aria-hidden="true"></span></button>
+        <button id="window-maximize" class="window-control window-maximize" type="button" aria-label="Maximize or restore window"><span aria-hidden="true"></span></button>
+        <button id="window-close" class="window-control window-close" type="button" aria-label="Close window"><span aria-hidden="true"></span></button>
+      </div>
+    </div>
     <div id="app" class="app-shell">
       <aside class="sidebar" id="sidebar">
-        <div class="brand"><span class="brand-mark">PBL</span><span><strong>VibePBL</strong><small>Secretary Edition</small></span></div>
-        <div class="local-badge"><span class="pulse-dot"></span><span><strong>Private workspace</strong><small>Saved locally on this device</small></span></div>
+        <div class="brand"><img class="brand-logo" src="./assets/app-icon.svg" alt=""><span><strong>VibePBL</strong><small>Secretary Edition</small></span></div>
         <nav aria-label="Workspace navigation">
-          <p class="nav-label">ACT 1 · ANALYSE</p>
+          <p class="nav-label">ACT 1 · ANALYZE</p>
           <a href="#/case" data-route="case"><span>▤</span>Case materials</a>
           <a href="#/terms" data-route="terms"><span>?</span>Clarifying terms</a>
           <a href="#/timeline" data-route="timeline"><span>↝</span>Clinical timeline</a>
           <a href="#/problems" data-route="problems"><span>☷</span>Problems & hypotheses</a>
           <a href="#/objectives" data-route="objectives"><span>▱</span>Learning objectives</a>
-          <p class="nav-label">ACT 2 · SYNTHESISE</p>
+          <p class="nav-label">ACT 2 · SYNTHESIZE</p>
           <a href="#/randomizer" data-route="randomizer"><span>♜</span>Presenter randomizer</a>
           <a href="#/verification" data-route="verification"><span>✓</span>Verification board</a>
         </nav>
@@ -36,9 +46,27 @@
       </aside>
       <main class="main-shell">
         <header class="topbar">
-          <button id="sidebar-toggle" class="icon-button" aria-label="Toggle sidebar">☰</button>
-          <div><span class="eyebrow">ACTIVE SESSION</span><h1 id="session-title">PBL Session</h1></div>
-          <div class="topbar-actions"><span id="save-indicator" class="save-indicator">Saved</span><button id="quick-print" class="button button-secondary">Print Act 1</button></div>
+          <button id="sidebar-toggle" class="icon-button sidebar-toggle" type="button" data-sidebar-toggle aria-label="Close sidebar" aria-expanded="true" title="Close sidebar">☰</button>
+          <div class="topbar-heading">
+            <h1 id="session-title">PBL Session</h1>
+            <span id="current-section" class="topbar-section">Case materials</span>
+          </div>
+          <div class="topbar-actions"><button class="button button-secondary" type="button" data-quick-print>Print Act 1</button></div>
+        </header>
+        <header class="retro-browserbar" aria-label="VibePBL browser toolbar">
+          <div class="retro-menubar" aria-hidden="true"><span>File</span><span>Edit</span><span>View</span><span>Favorites</span><span>Tools</span><span>Help</span></div>
+          <div class="retro-toolbar">
+            <button class="retro-tool" type="button" data-sidebar-toggle aria-label="Close sidebar" aria-expanded="true" title="Close sidebar"><span aria-hidden="true">☰</span> Sidebar</button>
+            <button class="retro-tool" type="button" data-browser-back><span aria-hidden="true">←</span> Back</button>
+            <button class="retro-tool" type="button" data-browser-forward><span aria-hidden="true">→</span> Forward</button>
+            <span class="retro-toolbar-separator" aria-hidden="true"></span>
+            <button class="retro-tool" type="button" data-quick-print><span aria-hidden="true">▣</span> Print Act 1</button>
+          </div>
+          <div class="retro-addressbar">
+            <span class="retro-address-label">Address</span>
+            <div class="retro-address-field"><img src="./assets/app-icon.svg" alt=""><span id="retro-address-text">vibepbl://case-materials</span><span class="retro-address-arrow" aria-hidden="true">▼</span></div>
+            <button class="retro-go" type="button">↪ Go</button>
+          </div>
         </header>
         <section id="page" class="page" aria-live="polite"><div class="loading">Opening your workspace…</div></section>
       </main>

@@ -40,8 +40,6 @@ export const API = {
   addMember: name => desktopOr('add_member', { name }, () => previewAddMember(name)),
   removeMember: id => desktopOr('remove_member', { id }, () => previewRemoveMember(id)),
   importMembers: names => desktopOr('import_members_list', { names }, () => Promise.all(names.map(previewAddMember))),
-  exportSavefile: () => invoke ? invoke('export_savefile_dialog') : nativeOnly('Native Save As is available in the installed desktop app.'),
-  importSavefile: () => invoke ? invoke('import_savefile_dialog') : nativeOnly('Native file opening is available in the installed desktop app.'),
   getPrintData: () => desktopOr('get_print_act1_data', undefined, () => ({ session: previewRead(), generatedAt: new Date().toISOString() })),
   openPrintWindow: () => { location.hash = '#/print'; },
   imageUrl: path => window.__TAURI__?.core?.convertFileSrc ? window.__TAURI__.core.convertFileSrc(path) : path

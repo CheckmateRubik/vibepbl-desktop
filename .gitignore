@@ -7,6 +7,10 @@ src-tauri/gen/
 .npm-repair-backup/
 rustup-init.exe
 *.pbl.json
+*.dmg*
+*.pkg*
+*.app/
+*.app.tar.gz*
 
 # Local source material (not part of the distributed application)
 prompt.md

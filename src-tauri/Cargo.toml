@@ -1,6 +1,6 @@
 [package]
 name = "vibepbl-desktop"
-version = "1.0.8"
+version = "1.0.10"
 description = "Offline secretary workspace for medical PBL sessions"
 authors = ["CheckmateRubik"]
 license = "MIT"
@@ -18,12 +18,10 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 tauri = { version = "2", features = ["protocol-asset"] }
 tauri-plugin-dialog = "2"
-tauri-plugin-fs = "2"
 tauri-plugin-sql = { version = "2", features = ["sqlite"] }
 rusqlite = { version = "0.32", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 uuid = { version = "1", features = ["v4"] }
 chrono = { version = "0.4", features = ["serde"] }
-base64 = "0.22"
 rfd = "0.15"

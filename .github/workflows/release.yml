@@ -1,4 +1,4 @@
-name: Build VibePBL Desktop
+name: Build VibePBL Desktop for Windows
 
 on:
   push:
@@ -10,11 +10,7 @@ permissions:
 
 jobs:
   build:
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: [windows-latest, macos-latest]
-    runs-on: ${{ matrix.platform }}
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -37,31 +33,17 @@ jobs:
         run: cargo test --manifest-path src-tauri/Cargo.toml --all-targets --all-features --locked
 
       - name: Build standalone Windows executable
-        if: runner.os == 'Windows'
         run: npm run tauri -- build --no-bundle
       - name: Name standalone Windows executable
-        if: runner.os == 'Windows'
         shell: pwsh
         run: |
           $version = (Get-Content package.json | ConvertFrom-Json).version
           Copy-Item "src-tauri/target/release/vibepbl-desktop.exe" "VibePBL.Desktop_${version}_Windows-x64-Portable.exe"
       - name: Store standalone Windows executable
-        if: runner.os == 'Windows'
         uses: actions/upload-artifact@v4
         with:
           name: windows-portable
           path: VibePBL.Desktop_*_Windows-x64-Portable.exe
-          if-no-files-found: error
-
-      - name: Build macOS DMG
-        if: runner.os == 'macOS'
-        run: npm run tauri -- build --bundles dmg
-      - name: Store macOS DMG
-        if: runner.os == 'macOS'
-        uses: actions/upload-artifact@v4
-        with:
-          name: macos-dmg
-          path: src-tauri/target/release/bundle/dmg/*.dmg
           if-no-files-found: error
 
   release:
@@ -88,8 +70,8 @@ jobs:
             TAG="v${VERSION}"
           fi
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release edit "$TAG" --title "VibePBL Desktop ${VERSION}" --notes "Offline VibePBL downloads: a standalone Windows executable and a macOS DMG."
+            gh release edit "$TAG" --title "VibePBL Desktop ${VERSION}" --notes "Offline VibePBL download: standalone Windows executable."
           else
-            gh release create "$TAG" --title "VibePBL Desktop ${VERSION}" --notes "Offline VibePBL downloads: a standalone Windows executable and a macOS DMG."
+            gh release create "$TAG" --title "VibePBL Desktop ${VERSION}" --notes "Offline VibePBL download: standalone Windows executable."
           fi
           gh release upload "$TAG" release-assets/* --clobber

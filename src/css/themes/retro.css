@@ -1,3 +1,7 @@
+@font-face{font-family:"VibePBL Retro";src:local("MS Sans Serif"),local("Microsoft Sans Serif"),local("Tahoma");font-style:normal;font-weight:400;font-display:swap;unicode-range:U+0000-0DFF,U+0E80-10FFFF}
+@font-face{font-family:"VibePBL Retro";src:local("MS Sans Serif Bold"),local("Microsoft Sans Serif Bold"),local("Tahoma Bold"),local("Tahoma");font-style:normal;font-weight:700;font-display:swap;unicode-range:U+0000-0DFF,U+0E80-10FFFF}
+@font-face{font-family:"VibePBL Retro";src:url('../../fonts/Sarabun-Regular.ttf') format('truetype');font-style:normal;font-weight:400;font-display:block;unicode-range:U+0E00-0E7F}
+@font-face{font-family:"VibePBL Retro";src:url('../../fonts/Sarabun-Bold.ttf') format('truetype');font-style:normal;font-weight:700;font-display:block;unicode-range:U+0E00-0E7F}
 html[data-theme="retro"]{
   --bg-app:#c0c0c0;
   --bg-card:#fff;
@@ -25,24 +29,45 @@ html[data-theme="retro"]{
   --status-investigating-bg:#fff;
   --status-investigating-border:#9a6500;
   --status-investigating-text:#765000;
-  font-family:Arial,Helvetica,Tahoma,sans-serif;
+  font-family:"VibePBL Retro","MS Sans Serif","Microsoft Sans Serif",Tahoma,sans-serif;
 }
+html[data-theme="retro"] body,html[data-theme="retro"] button,html[data-theme="retro"] input,html[data-theme="retro"] textarea,html[data-theme="retro"] select{font-family:"VibePBL Retro","MS Sans Serif","Microsoft Sans Serif",Tahoma,sans-serif}
 html[data-theme="retro"] body{background:#c0c0c0;font-size:14px}
+html[data-theme="retro"]{--window-titlebar-height:26px}
+html[data-theme="retro"] *{scrollbar-width:auto;scrollbar-color:auto}
+html[data-theme="retro"] *::-webkit-scrollbar{width:17px;height:17px}
+html[data-theme="retro"] *::-webkit-scrollbar-track{background:#dfdfd5;background-image:repeating-conic-gradient(#fff 0 25%,#dfdfd5 0 50%);background-size:2px 2px}
+html[data-theme="retro"] *::-webkit-scrollbar-thumb{min-height:24px;border:2px outset #fff;border-radius:0;background:#c0c0c0;background-clip:border-box;box-shadow:inset -1px -1px #808080,inset 1px 1px #fff}
+html[data-theme="retro"] *::-webkit-scrollbar-thumb:hover{background:#c0c0c0;background-clip:border-box}
+html[data-theme="retro"] *::-webkit-scrollbar-button{display:block;width:17px;height:17px;border:2px outset #fff;border-radius:0;background-color:#c0c0c0;background-position:center;background-repeat:no-repeat;background-size:9px 9px;box-shadow:inset -1px -1px #808080,inset 1px 1px #fff}
+html[data-theme="retro"] *::-webkit-scrollbar-button:active{border-style:inset}
+html[data-theme="retro"] *::-webkit-scrollbar-button:single-button:vertical:decrement,html[data-theme="retro"] *::-webkit-scrollbar-button:vertical:decrement{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='9'%3E%3Cpath d='M1 6.5 4.5 2 8 6.5z' fill='%23000'/%3E%3C/svg%3E")}
+html[data-theme="retro"] *::-webkit-scrollbar-button:single-button:vertical:increment,html[data-theme="retro"] *::-webkit-scrollbar-button:vertical:increment{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='9'%3E%3Cpath d='m1 2.5 3.5 4.5L8 2.5z' fill='%23000'/%3E%3C/svg%3E")}
+html[data-theme="retro"] *::-webkit-scrollbar-button:single-button:horizontal:decrement,html[data-theme="retro"] *::-webkit-scrollbar-button:horizontal:decrement{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='9'%3E%3Cpath d='M6.5 1 2 4.5 6.5 8z' fill='%23000'/%3E%3C/svg%3E")}
+html[data-theme="retro"] *::-webkit-scrollbar-button:single-button:horizontal:increment,html[data-theme="retro"] *::-webkit-scrollbar-button:horizontal:increment{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='9'%3E%3Cpath d='M2.5 1 7 4.5 2.5 8z' fill='%23000'/%3E%3C/svg%3E")}
+html[data-theme="retro"] *::-webkit-scrollbar-corner{background:#c0c0c0;border:2px outset #fff}
+html[data-theme="retro"] .window-titlebar{height:var(--window-titlebar-height);padding:2px 2px 2px 5px;border:2px outset #fff;background:linear-gradient(90deg,#000080,#1084d0);color:#fff;box-shadow:none;font-family:"VibePBL Retro","MS Sans Serif",Tahoma,sans-serif;font-weight:700}
+html[data-theme="retro"] .window-titlebar-app{gap:5px;font-size:12px}
+html[data-theme="retro"] .window-titlebar-app img{width:16px;height:16px;border-radius:0}
+html[data-theme="retro"] .window-controls{height:20px;gap:2px;align-self:center}
+html[data-theme="retro"] .window-control{width:22px;height:20px;border:2px outset #fff;background:#c0c0c0;color:#000;box-shadow:inset -1px -1px #808080,inset 1px 1px #fff}
+html[data-theme="retro"] .window-control:hover{background:#c0c0c0;color:#000}
+html[data-theme="retro"] .window-control:active{border-style:inset;box-shadow:none}
+html[data-theme="retro"] .window-close:hover{background:#c0c0c0;color:#000}
 html[data-theme="retro"] .sidebar{border-right:2px ridge #fff}
 html[data-theme="retro"] .brand{border-bottom:2px groove #fff}
-html[data-theme="retro"] .brand-mark{border:2px outset #fff;border-radius:0;background:#0000aa;box-shadow:none}
-html[data-theme="retro"] .brand strong{font-family:"Times New Roman",Times,serif;letter-spacing:.04em}
-html[data-theme="retro"] .brand small,html[data-theme="retro"] .local-badge small{color:#fff}
-html[data-theme="retro"] .local-badge{border:2px inset #fff;border-radius:0;background:#000080}
+html[data-theme="retro"] .brand-logo{border:2px outset #fff;border-radius:0;background:#0000aa;box-shadow:none}
+html[data-theme="retro"] .brand strong{font-family:"VibePBL Retro","MS Sans Serif",Tahoma,sans-serif;letter-spacing:.02em}
+html[data-theme="retro"] .brand small{color:#fff}
 html[data-theme="retro"] nav a,html[data-theme="retro"] .settings-link{border-radius:0;color:#fff;text-decoration:underline}
 html[data-theme="retro"] nav a:hover,html[data-theme="retro"] .settings-link:hover{background:#000099;color:#ff0}
 html[data-theme="retro"] nav a.active,html[data-theme="retro"] .settings-link.active{background:#0000aa;color:#ff0;box-shadow:inset 4px 0 #ff0}
 html[data-theme="retro"] .nav-label{color:#fff;border-bottom:1px dotted #fff;padding-bottom:5px}
 html[data-theme="retro"] .topbar{border-bottom:2px groove #fff;background:#d4d0c8}
-html[data-theme="retro"] .topbar h1,html[data-theme="retro"] .page-header h2{font-family:"Times New Roman",Times,serif;letter-spacing:0}
-html[data-theme="retro"] .eyebrow{color:#000080}
+html[data-theme="retro"] .topbar h1,html[data-theme="retro"] .page-header h2{font-family:"VibePBL Retro","MS Sans Serif",Tahoma,sans-serif;letter-spacing:0}
+html[data-theme="retro"] .topbar-section{color:#000080}
 html[data-theme="retro"] .card{border:2px outset #fff;border-radius:0;background:#fff;box-shadow:none}
-html[data-theme="retro"] .section-title{font-family:"Times New Roman",Times,serif;font-size:19px}
+html[data-theme="retro"] .section-title{font-family:"VibePBL Retro","MS Sans Serif",Tahoma,sans-serif;font-size:17px}
 html[data-theme="retro"] .button,html[data-theme="retro"] .icon-button{border:2px outset #fff;border-radius:0;padding:7px 13px;background:#d4d0c8;color:#000;font-weight:700;box-shadow:none;filter:none}
 html[data-theme="retro"] .button:active,html[data-theme="retro"] .icon-button:active{border-style:inset}
 html[data-theme="retro"] .button-primary{background:#000080;color:#fff;border-color:#fff}
@@ -72,3 +97,36 @@ html[data-theme="retro"] .timeline-event-badge,html[data-theme="retro"] .timelin
 html[data-theme="retro"] .timeline-step-input,html[data-theme="retro"] .term-card,html[data-theme="retro"] .objective-link-row,html[data-theme="retro"] .objective-link-section{border:2px inset #fff;background:#fff}
 html[data-theme="retro"] .timeline-color-dot.active{outline:1px dotted #000;box-shadow:none}
 html[data-theme="retro"] .problem-count{border-radius:0;border:1px solid #808080}
+
+/* Internet Explorer 4 / Windows 98 application chrome. */
+html[data-theme="retro"] *{border-radius:0!important}
+html[data-theme="retro"] .topbar{display:none}
+html[data-theme="retro"] .retro-browserbar{position:sticky;top:0;z-index:8;display:block;padding:2px;border-bottom:2px outset #fff;background:#d4d0c8;color:#000;box-shadow:none;font-size:12px}
+html[data-theme="retro"] .retro-menubar{display:flex;align-items:center;gap:18px;min-height:21px;padding:1px 6px 2px;border-bottom:1px solid #808080;box-shadow:0 1px #fff}
+html[data-theme="retro"] .retro-menubar span::first-letter{text-decoration:underline}
+html[data-theme="retro"] .retro-toolbar{display:flex;align-items:center;min-height:30px;padding:2px 3px;border-bottom:1px solid #808080;box-shadow:0 1px #fff}
+html[data-theme="retro"] .retro-tool{display:inline-flex;align-items:center;gap:4px;min-height:25px;padding:2px 8px;border:1px solid transparent;background:transparent;color:#000;font-weight:400}
+html[data-theme="retro"] .retro-tool:hover{border:2px outset #fff;padding:1px 7px;background:#d4d0c8}
+html[data-theme="retro"] .retro-tool:active{border:2px inset #fff;padding:2px 6px 0 8px}
+html[data-theme="retro"] .retro-tool span{font-size:15px;line-height:1}
+html[data-theme="retro"] .retro-toolbar-separator{align-self:stretch;width:2px;margin:2px 5px;border-left:1px solid #808080;border-right:1px solid #fff}
+html[data-theme="retro"] .retro-addressbar{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:5px;min-height:27px;padding:3px 4px 2px}
+html[data-theme="retro"] .retro-address-label{padding:0 3px}
+html[data-theme="retro"] .retro-address-field{display:flex;align-items:center;min-width:0;height:21px;padding:1px 2px;border:2px inset #fff;background:#fff;color:#000}
+html[data-theme="retro"] .retro-address-field img{width:16px;height:16px;margin-right:4px}
+html[data-theme="retro"] .retro-address-field span:not(.retro-address-arrow){overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+html[data-theme="retro"] .retro-address-arrow{display:grid;place-items:center;width:17px;height:17px;margin-left:auto;border:1px outset #fff;background:#d4d0c8;font-size:8px}
+html[data-theme="retro"] .retro-go{height:23px;padding:1px 8px;border:2px outset #fff;background:#d4d0c8;color:#000}
+html[data-theme="retro"] .retro-go:active{border-style:inset}
+html[data-theme="retro"] .page{max-width:none;margin:0;padding:18px 24px;background:#fff}
+html[data-theme="retro"] .page-header{padding-bottom:8px;border-bottom:1px solid #808080}
+html[data-theme="retro"] .page-header h2{font-size:20px}
+html[data-theme="retro"] .sidebar-toggle{display:inline-flex}
+
+@media(max-width:700px){
+  html[data-theme="retro"] .retro-menubar{gap:11px;overflow:hidden}
+  html[data-theme="retro"] .retro-tool{font-size:0;padding-inline:7px}
+  html[data-theme="retro"] .retro-tool span{font-size:15px}
+  html[data-theme="retro"] .retro-address-label{display:none}
+  html[data-theme="retro"] .page{padding:12px}
+}

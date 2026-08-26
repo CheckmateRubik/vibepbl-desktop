@@ -22,7 +22,7 @@ export function renderCase(ctx) {
 
   document.getElementById('add-image').addEventListener('click', async () => {
     try { const image = await ctx.API.pickImage(); session.caseImages.push(image); ctx.render(); ctx.showToast('Case image imported', 'success'); }
-    catch (error) { if (!String(error).includes('cancelled')) ctx.showToast(String(error), 'error'); }
+    catch (error) { if (!String(error).includes('canceled')) ctx.showToast(String(error), 'error'); }
   });
   document.querySelectorAll('[data-image]').forEach(button => button.addEventListener('click', () => openHighlightEditor(ctx, button.dataset.image)));
   document.querySelectorAll('[data-delete-image]').forEach(button => button.addEventListener('click', async () => {

@@ -11,4 +11,7 @@ document.getElementById('back-to-session').addEventListener('click', () => {
   if (history.length > 1) history.back();
   else window.location.assign('./index.html');
 });
-document.getElementById('print-report').addEventListener('click', () => window.print());
+document.getElementById('print-report').addEventListener('click', async () => {
+  await document.fonts?.ready;
+  window.print();
+});

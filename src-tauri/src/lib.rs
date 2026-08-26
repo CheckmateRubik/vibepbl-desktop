@@ -16,7 +16,6 @@ pub struct AppState {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_sql::Builder::default().build())
         .setup(|app| {
             let app_data_dir = std::env::var_os("VIBEPBL_DATA_DIR")
@@ -40,8 +39,6 @@ pub fn run() {
             commands::members::import_members_list,
             commands::images::pick_and_import_image,
             commands::images::delete_image,
-            commands::savefile::export_savefile_dialog,
-            commands::savefile::import_savefile_dialog,
             commands::print::get_print_act1_data,
         ])
         .run(tauri::generate_context!())

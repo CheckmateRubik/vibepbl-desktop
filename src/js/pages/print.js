@@ -16,5 +16,8 @@ export function renderPrint(ctx) {
     if (history.length > 1) history.back();
     else location.hash = '#/objectives';
   });
-  document.getElementById('print-now').addEventListener('click', () => window.print());
+  document.getElementById('print-now').addEventListener('click', async () => {
+    await document.fonts?.ready;
+    window.print();
+  });
 }

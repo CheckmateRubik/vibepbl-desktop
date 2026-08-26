@@ -14,7 +14,7 @@ pub fn pick_and_import_image(state: State<'_, AppState>) -> Result<ImageMetadata
             &["png", "jpg", "jpeg", "webp", "bmp", "gif"],
         )
         .pick_file()
-        .ok_or_else(|| "cancelled".to_string())?;
+        .ok_or_else(|| "canceled".to_string())?;
     let extension = picked
         .extension()
         .and_then(|value| value.to_str())
