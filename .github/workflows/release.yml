@@ -1,4 +1,4 @@
-name: Build VibePBL Desktop for Windows
+name: Build VibePBL Desktop releases
 
 on:
   push:
@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  build:
+  build-windows:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v5
@@ -46,8 +46,38 @@ jobs:
           path: VibePBL.Desktop_*_Windows-x64-Portable.exe
           if-no-files-found: error
 
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+      - name: Install frontend tooling
+        run: npm ci
+      - name: Check frontend JavaScript
+        run: npm run check:js
+      - name: Build universal macOS DMG
+        run: npm run tauri -- build --target universal-apple-darwin --bundles dmg
+      - name: Name universal macOS DMG
+        shell: bash
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          DMG=$(find src-tauri/target/universal-apple-darwin/release/bundle/dmg -maxdepth 1 -name '*.dmg' -print -quit)
+          test -n "$DMG"
+          cp "$DMG" "VibePBL.Desktop_${VERSION}_macOS-Universal.dmg"
+      - name: Store universal macOS DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-dmg
+          path: VibePBL.Desktop_*_macOS-Universal.dmg
+          if-no-files-found: error
+
   release:
-    needs: build
+    needs: [build-windows, build-macos]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -70,8 +100,8 @@ jobs:
             TAG="v${VERSION}"
           fi
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release edit "$TAG" --title "VibePBL Desktop ${VERSION}" --notes "Offline VibePBL download: standalone Windows executable."
+            gh release edit "$TAG" --title "VibePBL Desktop ${VERSION}" --notes "Offline VibePBL downloads: standalone Windows executable and universal macOS DMG. The macOS build is ad-hoc signed and not notarized, so first launch may require approval in Privacy & Security."
           else
-            gh release create "$TAG" --title "VibePBL Desktop ${VERSION}" --notes "Offline VibePBL download: standalone Windows executable."
+            gh release create "$TAG" --title "VibePBL Desktop ${VERSION}" --notes "Offline VibePBL downloads: standalone Windows executable and universal macOS DMG. The macOS build is ad-hoc signed and not notarized, so first launch may require approval in Privacy & Security."
           fi
           gh release upload "$TAG" release-assets/* --clobber

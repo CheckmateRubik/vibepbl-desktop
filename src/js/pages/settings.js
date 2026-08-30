@@ -10,23 +10,17 @@ const themes = [
 
 export function renderSettings(ctx) {
   document.getElementById('page').innerHTML = `
-    ${pageHeader('Session & settings', 'Set the session title, group roster, and appearance.')}
+    ${pageHeader('Session & settings', 'Set the session title and appearance.')}
     <div class="settings-grid">
       <section class="card"><h3 class="section-title">Session</h3><div class="field"><label for="settings-title">Session title</label><input id="settings-title" class="input" value="${esc(ctx.session.title)}"></div></section>
       <section class="card"><h3 class="section-title">Appearance</h3><div class="theme-grid">${themes.map(([id,name,colors]) => `<button class="theme-option ${ctx.session.theme === id ? 'active' : ''}" data-theme-id="${id}"><span class="theme-swatch">${colors.map(color => `<i style="background:${color}"></i>`).join('')}</span><strong>${name}</strong></button>`).join('')}</div></section>
-      <section class="card"><h3 class="section-title">Group members</h3><div class="form-row"><input id="member-name" class="input" placeholder="Student or tutor name"><button id="add-member" class="button button-primary">Add</button></div><div class="roster-list mt-3">${ctx.members.length ? ctx.members.map(member => `<span class="member-chip">${esc(member.name)}<button class="button button-ghost button-sm" data-remove-member="${member.id}">✕</button></span>`).join('') : '<span class="muted">The persistent roster is empty.</span>'}</div><details class="mt-3"><summary>Paste a list of names</summary><textarea id="member-list" class="textarea" placeholder="One name per line"></textarea><button id="import-members" class="button button-secondary button-sm">Import names</button></details></section>
-      <section class="card danger-zone"><h3 class="section-title">Start over</h3><p class="muted">Clear the working session while keeping the persistent member roster.</p><button id="reset-session" class="button button-danger">Reset session</button></section>
+      <section class="card danger-zone"><h3 class="section-title">Start over</h3><p class="muted">Clear the current working session and imported case images.</p><button id="reset-session" class="button button-danger">Reset session</button></section>
     </div>`;
   document.getElementById('settings-title').addEventListener('input', event => ctx.setField('title', event.target.value, false));
   document.querySelectorAll('[data-theme-id]').forEach(button => button.addEventListener('click', () => { ctx.setField('theme', button.dataset.themeId); ctx.render(); }));
-  const addMember = async () => { const input = document.getElementById('member-name'); if (!input.value.trim()) return; try { await ctx.API.addMember(input.value.trim()); await ctx.refreshMembers(); } catch (error) { ctx.showToast(String(error), 'error'); } };
-  document.getElementById('add-member').addEventListener('click', addMember);
-  document.getElementById('member-name').addEventListener('keydown', event => { if (event.key === 'Enter') addMember(); });
-  document.querySelectorAll('[data-remove-member]').forEach(button => button.addEventListener('click', async () => { await ctx.API.removeMember(Number(button.dataset.removeMember)); await ctx.refreshMembers(); }));
-  document.getElementById('import-members').addEventListener('click', async () => { const names = document.getElementById('member-list').value.split(/\r?\n|,/).map(name => name.trim()).filter(Boolean); if (!names.length) return; await ctx.API.importMembers(names); await ctx.refreshMembers(); });
   document.getElementById('reset-session').addEventListener('click', () => openConfirmModal(
     'Delete this session?',
-    'This clears the working session and keeps your saved group roster.',
+    'This clears the working session, including its text, imported images, and highlights.',
     async () => { await ctx.API.resetSession(); ctx.setSession(await ctx.API.getSession()); ctx.showToast('Working session reset', 'success'); },
     'Delete session'
   ));

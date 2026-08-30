@@ -9,12 +9,12 @@ There are no accounts, rooms, cloud services, analytics, or internet requirement
 ## Install for normal use
 
 1. Open the project’s **GitHub Releases** page.
-2. Download `VibePBL.Desktop_<version>_Windows-x64-Portable.exe`.
-3. Double-click the executable. No installer is required.
+2. On Windows, download `VibePBL.Desktop_<version>_Windows-x64-Portable.exe` and double-click it. No installer is required.
+3. On macOS, download `VibePBL.Desktop_<version>_macOS-Universal.dmg`, open it, and drag VibePBL Desktop into Applications.
 
 End users do not need Docker, Node.js, Rust, a terminal, an account, or internet access after downloading the app. The portable Windows executable stores session data in the user's private AppData directory.
 
-The repository does not distribute macOS binaries, app bundles, DMGs, or packages. macOS users can compile the source locally by following the instructions below.
+The universal macOS DMG supports both Intel and Apple Silicon Macs. It is ad-hoc signed but not Apple-notarized, so macOS may require first-launch approval under **System Settings → Privacy & Security**.
 
 ## Secretary workflow
 
@@ -29,8 +29,8 @@ The repository does not distribute macOS binaries, app bundles, DMGs, or package
 
 ### Act 2
 
-1. Add the persistent tutorial-group roster under **Session & settings**.
-2. Add any one-off presenter names and run the fair presenter randomizer.
+1. Add presenter names in **Presenter randomizer**.
+2. Run the fair presenter randomizer.
 3. Override an assignment manually when the tutorial group requires it.
 4. Cycle each hypothesis through Unchecked, Confirmed, Wrong, and Investigating as evidence is presented.
 
@@ -40,13 +40,13 @@ Act 2 verification updates the same hypothesis records used in Act 1, so both vi
 
 The active workspace auto-saves text, images, highlights, timeline entries, problems, hypotheses, objectives, assignments, and verification state to the local SQLite database.
 
-The member roster persists independently when a session is reset. The app asks for confirmation before deleting the working session.
+The app asks for confirmation before deleting the working session.
 
 ## Offline data locations
 
 Tauri resolves the operating system’s private application-data directory and creates a `vibepbl` folder containing:
 
-- `vibepbl.db` — active session and persistent member roster
+- `vibepbl.db` — active session and app data
 - `images/` — private copies of imported clinical images
 
 Deleting an image in the app also removes its private copied file. The original source image is never modified.
@@ -73,7 +73,7 @@ Build the standalone executable for the current operating system with:
 npm run build
 ```
 
-This project intentionally disables Tauri bundle generation. The command compiles the executable but does not create MSI, NSIS, DMG, PKG, or `.app` distribution bundles.
+The default build command compiles the standalone executable without an installer. The release workflow separately creates a macOS DMG.
 
 Run the dependency-free frontend checks with:
 
@@ -84,7 +84,7 @@ node scripts/test-randomizer.mjs
 
 ### Compile from source on macOS
 
-No prebuilt macOS download is provided. To compile the source on your own Mac:
+To compile the source on your own Mac:
 
 1. Install Xcode Command Line Tools:
 
@@ -117,7 +117,7 @@ No prebuilt macOS download is provided. To compile the source on your own Mac:
    ./src-tauri/target/release/vibepbl-desktop
    ```
 
-This is a local, unsigned self-build. macOS may require you to approve it under **System Settings → Privacy & Security**.
+To create a native-architecture DMG instead, run `npm run tauri -- build --bundles dmg`. A local ad-hoc-signed build may still require approval under **System Settings → Privacy & Security**.
 
 ## Privacy and security notes
 
@@ -130,7 +130,7 @@ VibePBL is an educational organization tool. It does not provide medical advice,
 
 ## Releasing
 
-The included GitHub Actions workflow builds and publishes only the standalone Windows executable when a version tag such as `v1.0.0` is pushed. MSI, NSIS, macOS, DMG, PKG, and `.app` release assets are intentionally not produced. Configure repository Actions permissions to allow release creation. Unsigned builds may trigger operating-system warnings.
+When a version tag such as `v1.0.11` is pushed, GitHub Actions publishes the standalone Windows executable and a universal macOS DMG. MSI, NSIS, and PKG assets are not produced. Configure repository Actions permissions to allow release creation. The Windows build is unsigned; the macOS build is ad-hoc signed and not notarized, so operating-system warnings may appear.
 
 ## License
 
