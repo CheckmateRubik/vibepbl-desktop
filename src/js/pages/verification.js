@@ -1,10 +1,9 @@
 import { esc, emptyState, pageHeader, uid } from '../components/helpers.js';
 import { openFormModal } from '../components/modal.js';
 
-const cycle = ['pending', 'correct', 'wrong', 'yellow'];
+const cycle = ['pending', 'correct', 'wrong'];
 const stateMap = {
-  pending:{ validation:'pending', status:'none', checked:false }, correct:{ validation:'correct', status:'green', checked:true },
-  wrong:{ validation:'wrong', status:'none', checked:false }, yellow:{ validation:'yellow', status:'yellow', checked:false }
+  pending:{ validation:'pending' }, correct:{ validation:'correct' }, wrong:{ validation:'wrong' }
 };
 
 export function renderVerification(ctx) {
@@ -17,7 +16,7 @@ export function renderVerification(ctx) {
   }));
   document.querySelectorAll('[data-edit-hypothesis]').forEach(button => button.addEventListener('click', () => { const [problemId, hypothesisId] = button.dataset.editHypothesis.split('|'); const hypothesis = ctx.session.problems.find(item => item.id === problemId).hypotheses.find(item => item.id === hypothesisId); openFormModal('Revise hypothesis', [{ name:'text', label:'Hypothesis', type:'textarea', value:esc(hypothesis.text) }], ({ text }) => { hypothesis.text = text.trim(); ctx.setField('problems', ctx.session.problems); ctx.render(); }); }));
   document.querySelectorAll('[data-delete-hypothesis]').forEach(button => button.addEventListener('click', () => { const [problemId, hypothesisId] = button.dataset.deleteHypothesis.split('|'); const problem = ctx.session.problems.find(item => item.id === problemId); problem.hypotheses = problem.hypotheses.filter(item => item.id !== hypothesisId); ctx.setField('problems', ctx.session.problems); ctx.render(); }));
-  document.querySelectorAll('[data-add-revised]').forEach(button => button.addEventListener('click', () => openFormModal('Add revised hypothesis', [{ name:'text', label:'New or revised hypothesis', type:'textarea', value:'' }], ({ text }) => { const problem = ctx.session.problems.find(item => item.id === button.dataset.addRevised); problem.hypotheses.push({ id:uid('hyp'), text:text.trim(), ...stateMap.pending }); ctx.setField('problems', ctx.session.problems); ctx.render(); })));
+  document.querySelectorAll('[data-add-revised]').forEach(button => button.addEventListener('click', () => openFormModal('Add revised hypothesis', [{ name:'text', label:'New or revised hypothesis', type:'textarea', value:'' }], ({ text }) => { const problem = ctx.session.problems.find(item => item.id === button.dataset.addRevised); problem.hypotheses.push({ id:uid('hyp'), text:text.trim(), status:'none', checked:false, ...stateMap.pending }); ctx.setField('problems', ctx.session.problems); ctx.render(); })));
 }
 
-function row(hypothesis, index, problemId) { const state = hypothesis.validation || (hypothesis.status === 'green' ? 'correct' : hypothesis.status === 'yellow' ? 'yellow' : 'pending'); const type = state === 'correct' ? 'confirmed' : state === 'yellow' ? 'investigating' : state === 'wrong' ? 'wrong' : 'pending'; const label = state === 'correct' ? 'Confirmed ✓' : state === 'wrong' ? 'Wrong ✗' : state === 'yellow' ? 'Investigating ⚡' : 'Unchecked'; const key = `${problemId}|${hypothesis.id}`; return `<div class="hypothesis-row ${type !== 'pending' ? `status-${type}` : ''}"><button class="status-badge ${type !== 'pending' ? `status-${type}` : ''}" data-cycle-status="${esc(key)}">${label}</button><span class="code-badge">H${index + 1}</span><span class="hypothesis-text">${esc(hypothesis.text)}</span><button class="button button-ghost" data-edit-hypothesis="${esc(key)}">✎</button><button class="button button-ghost" data-delete-hypothesis="${esc(key)}">🗑</button></div>`; }
+function row(hypothesis, index, problemId) { const state = ['correct', 'wrong'].includes(hypothesis.validation) ? hypothesis.validation : 'pending'; const type = state === 'correct' ? 'confirmed' : state; const label = state === 'correct' ? 'Correct ✓' : state === 'wrong' ? 'Wrong ✗' : 'Unchecked'; const key = `${problemId}|${hypothesis.id}`; return `<div class="hypothesis-row ${type !== 'pending' ? `status-${type}` : ''}"><button class="status-badge ${type !== 'pending' ? `status-${type}` : ''}" data-cycle-status="${esc(key)}">${label}</button><span class="code-badge">H${index + 1}</span><span class="hypothesis-text">${esc(hypothesis.text)}</span><button class="button button-ghost" data-edit-hypothesis="${esc(key)}">✎</button><button class="button button-ghost" data-delete-hypothesis="${esc(key)}">🗑</button></div>`; }

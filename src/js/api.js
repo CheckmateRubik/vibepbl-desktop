@@ -41,6 +41,7 @@ export const API = {
   removeMember: id => desktopOr('remove_member', { id }, () => previewRemoveMember(id)),
   importMembers: names => desktopOr('import_members_list', { names }, () => Promise.all(names.map(previewAddMember))),
   getPrintData: () => desktopOr('get_print_act1_data', undefined, () => ({ session: previewRead(), generatedAt: new Date().toISOString() })),
+  printCurrentWindow: () => desktopOr('print_current_window', undefined, () => window.print()),
   openPrintWindow: () => { location.hash = '#/print'; },
   imageUrl: path => window.__TAURI__?.core?.convertFileSrc ? window.__TAURI__.core.convertFileSrc(path) : path
 };

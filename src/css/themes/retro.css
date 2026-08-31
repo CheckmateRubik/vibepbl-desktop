@@ -76,7 +76,7 @@ html[data-theme="retro"] .button-danger{background:#d4d0c8;color:#900;border-col
 html[data-theme="retro"] .button-ghost{border:0;background:transparent;color:#000080}
 html[data-theme="retro"] .input,html[data-theme="retro"] .textarea,html[data-theme="retro"] .select{border:2px inset #fff;border-radius:0;padding:8px 9px;background:#fff;box-shadow:none}
 html[data-theme="retro"] .input:focus,html[data-theme="retro"] .textarea:focus,html[data-theme="retro"] .select:focus{outline:1px dotted #000080;outline-offset:1px;box-shadow:none}
-html[data-theme="retro"] .list-item,html[data-theme="retro"] .objective-card,html[data-theme="retro"] .verification-problem,html[data-theme="retro"] .assignment-card,html[data-theme="retro"] .timeline-card,html[data-theme="retro"] .timeline-event-card,html[data-theme="retro"] .term-card,html[data-theme="retro"] .image-card{border-radius:0;box-shadow:none}
+html[data-theme="retro"] .list-item,html[data-theme="retro"] .objective-card,html[data-theme="retro"] .verification-problem,html[data-theme="retro"] .assignment-card,html[data-theme="retro"] .timeline-card,html[data-theme="retro"] .timeline-event-card,html[data-theme="retro"] .term-card,html[data-theme="retro"] .image-card,html[data-theme="retro"] .linked-problem-chip{border-radius:0;box-shadow:none}
 html[data-theme="retro"] .code-badge,html[data-theme="retro"] .status-badge,html[data-theme="retro"] .member-chip,html[data-theme="retro"] .check-chip{border-radius:0}
 html[data-theme="retro"] .image-card button.image-open{background:#808080;border-bottom:2px groove #fff}
 html[data-theme="retro"] .empty-state{border:1px dashed #808080;background:#fff}

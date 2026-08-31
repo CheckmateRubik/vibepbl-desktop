@@ -2,8 +2,15 @@ import { esc, emptyState, pageHeader, uid } from '../components/helpers.js';
 import { openFormModal } from '../components/modal.js';
 
 let selectedId;
-let draggingId;
-const act1States = ['none', 'green', 'yellow'];
+
+export const isHypothesisPrioritized = hypothesis => ['prioritized', 'green', 'yellow'].includes(hypothesis.status);
+
+export function orderProblemsByIds(problems, orderedIds) {
+  const byId = new Map(problems.map(problem => [problem.id, problem]));
+  const ordered = orderedIds.map(id => byId.get(id)).filter(Boolean);
+  const included = new Set(ordered.map(problem => problem.id));
+  return [...ordered, ...problems.filter(problem => !included.has(problem.id))];
+}
 
 export function renderProblems(ctx) {
   const locked = ctx.session.isAct1Completed;
@@ -32,28 +39,21 @@ export function renderProblems(ctx) {
   };
   document.getElementById('add-problem').addEventListener('click', addProblem);
   document.getElementById('problem-input').addEventListener('keydown', event => submitOnEnter(event, addProblem));
-  document.querySelectorAll('[data-problem]').forEach(button => {
-    button.addEventListener('click', event => {
+  document.querySelectorAll('[data-problem]').forEach(item => {
+    item.addEventListener('click', event => {
       if (event.target.closest('[data-drag-problem]')) return;
-      selectedId = button.dataset.problem;
+      selectedId = item.dataset.problem;
       ctx.render();
     });
-    button.addEventListener('dragover', event => event.preventDefault());
-    button.addEventListener('drop', event => {
-      event.preventDefault();
-      const target = button.dataset.problem;
-      if (!draggingId || draggingId === target) return;
-      const next = [...ctx.session.problems];
-      const from = next.findIndex(item => item.id === draggingId);
-      const to = next.findIndex(item => item.id === target);
-      if (from < 0 || to < 0) return;
-      next.splice(to, 0, next.splice(from, 1)[0]);
-      draggingId = undefined;
-      ctx.setField('problems', next);
-      ctx.render();
+    item.addEventListener('keydown', event => {
+      if ((event.key === 'Enter' || event.key === ' ') && !event.target.closest('button')) {
+        event.preventDefault();
+        selectedId = item.dataset.problem;
+        ctx.render();
+      }
     });
   });
-  document.querySelectorAll('[data-drag-problem]').forEach(handle => handle.addEventListener('dragstart', () => draggingId = handle.dataset.dragProblem));
+  setupProblemDragging(ctx, locked);
   if (!selected) return;
 
   document.querySelector('[data-edit-problem]').addEventListener('click', () => openTextForm('Edit clinical problem', 'Clinical problem point', selected.text, text => {
@@ -79,8 +79,8 @@ export function renderProblems(ctx) {
   document.getElementById('hypothesis-input').addEventListener('keydown', event => submitOnEnter(event, addHypothesis));
   document.querySelectorAll('[data-cycle]').forEach(button => button.addEventListener('click', () => {
     const hypothesis = selected.hypotheses.find(item => item.id === button.dataset.cycle);
-    const state = act1States[(act1States.indexOf(hypothesis.status) + 1) % act1States.length];
-    Object.assign(hypothesis, state === 'green' ? { status:'green', validation:'correct', checked:true } : state === 'yellow' ? { status:'yellow', validation:'yellow', checked:false } : { status:'none', validation:'pending', checked:false });
+    const prioritized = !isHypothesisPrioritized(hypothesis);
+    Object.assign(hypothesis, { status:prioritized ? 'prioritized' : 'none', checked:prioritized });
     ctx.setField('problems', ctx.session.problems);
     ctx.render();
   }));
@@ -100,7 +100,66 @@ export function renderProblems(ctx) {
 }
 
 function problemButton(problem, index, locked) {
-  return `<button class="list-item problem-list-item ${problem.id === selectedId ? 'selected' : ''}" data-problem="${esc(problem.id)}"><span class="drag-handle" data-drag-problem="${esc(problem.id)}" draggable="${!locked}" title="Drag to reorder">⠿</span><span class="code-badge">P${index + 1}</span><span class="list-item-main list-item-title">${esc(problem.text)}</span><span class="problem-count" title="${problem.hypotheses.length} hypotheses">${problem.hypotheses.length} H</span></button>`;
+  return `<div class="list-item problem-list-item ${problem.id === selectedId ? 'selected' : ''}" data-problem="${esc(problem.id)}" role="button" tabindex="0"><span class="drag-handle" data-drag-problem="${esc(problem.id)}" title="Drag P${index + 1} to reorder">⠿</span><span class="code-badge">P${index + 1}</span><span class="list-item-main list-item-title">${esc(problem.text)}</span><span class="problem-count" title="${problem.hypotheses.length} hypotheses">${problem.hypotheses.length} H</span></div>`;
+}
+
+function setupProblemDragging(ctx, locked) {
+  if (locked) return;
+  const list = document.querySelector('.problem-list');
+  document.querySelectorAll('[data-drag-problem]').forEach(handle => handle.addEventListener('pointerdown', startEvent => {
+    if (startEvent.pointerType === 'mouse' && startEvent.button !== 0) return;
+    const item = handle.closest('[data-problem]');
+    const rect = item.getBoundingClientRect();
+    const pointerOffsetY = startEvent.clientY - rect.top;
+    const placeholder = document.createElement('div');
+    placeholder.className = 'problem-drop-placeholder';
+    placeholder.style.height = `${rect.height}px`;
+    startEvent.preventDefault();
+    list.insertBefore(placeholder, item);
+    document.body.appendChild(item);
+    item.classList.add('is-pointer-dragging');
+    Object.assign(item.style, { left:`${rect.left}px`, top:`${rect.top}px`, width:`${rect.width}px`, height:`${rect.height}px` });
+    document.body.classList.add('problem-reordering');
+
+    const move = event => {
+      event.preventDefault();
+      item.style.top = `${event.clientY - pointerOffsetY}px`;
+      const next = [...list.querySelectorAll('[data-problem]')].find(sibling => {
+        const siblingRect = sibling.getBoundingClientRect();
+        return event.clientY < siblingRect.top + siblingRect.height / 2;
+      });
+      list.insertBefore(placeholder, next || null);
+      if (event.clientY < 55) window.scrollBy(0, -14);
+      else if (event.clientY > window.innerHeight - 55) window.scrollBy(0, 14);
+    };
+    const finish = event => {
+      event?.preventDefault();
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', finish);
+      window.removeEventListener('pointercancel', cancel);
+      placeholder.replaceWith(item);
+      item.classList.remove('is-pointer-dragging');
+      item.removeAttribute('style');
+      document.body.classList.remove('problem-reordering');
+      const orderedIds = [...list.querySelectorAll('[data-problem]')].map(problem => problem.dataset.problem);
+      ctx.setField('problems', orderProblemsByIds(ctx.session.problems, orderedIds));
+      ctx.render();
+    };
+    const cancel = event => {
+      event?.preventDefault();
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', finish);
+      window.removeEventListener('pointercancel', cancel);
+      placeholder.replaceWith(item);
+      item.classList.remove('is-pointer-dragging');
+      item.removeAttribute('style');
+      document.body.classList.remove('problem-reordering');
+      ctx.render();
+    };
+    window.addEventListener('pointermove', move, { passive:false });
+    window.addEventListener('pointerup', finish, { passive:false });
+    window.addEventListener('pointercancel', cancel, { passive:false });
+  }));
 }
 
 function selectedPanel(ctx, selected, locked) {
@@ -114,8 +173,8 @@ function openTextForm(title, label, value, submit) {
 }
 
 function hypothesisRow(hypothesis, index, locked) {
-  const type = hypothesis.validation === 'wrong' ? 'wrong' : hypothesis.status === 'green' ? 'confirmed' : hypothesis.status === 'yellow' ? 'investigating' : '';
-  const label = type === 'confirmed' ? 'Confirmed ✓' : type === 'investigating' ? 'Investigating ⚡' : type === 'wrong' ? 'Wrong ✗' : 'Unchecked';
+  const type = isHypothesisPrioritized(hypothesis) ? 'prioritized' : '';
+  const label = type ? 'Prioritize ★' : 'Unchecked';
   return `<article class="hypothesis-row ${type ? `status-${type}` : ''}"><button class="status-badge ${type ? `status-${type}` : ''}" data-cycle="${esc(hypothesis.id)}" ${locked ? 'disabled' : ''}>${label}</button><span class="code-badge">H${index + 1}</span><span class="hypothesis-text">${esc(hypothesis.text)}</span><div class="item-actions"><button class="button button-ghost" data-edit-hyp="${esc(hypothesis.id)}" ${locked ? 'disabled' : ''}>✎</button><button class="button button-ghost" data-delete-hyp="${esc(hypothesis.id)}" ${locked ? 'disabled' : ''}>🗑</button></div></article>`;
 }
 

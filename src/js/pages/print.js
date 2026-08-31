@@ -18,6 +18,7 @@ export function renderPrint(ctx) {
   });
   document.getElementById('print-now').addEventListener('click', async () => {
     await document.fonts?.ready;
-    window.print();
+    try { await ctx.API.printCurrentWindow(); }
+    catch (error) { ctx.showToast(String(error), 'error'); }
   });
 }

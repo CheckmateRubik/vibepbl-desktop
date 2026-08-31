@@ -40,6 +40,7 @@ pub fn run() {
             commands::images::pick_and_import_image,
             commands::images::delete_image,
             commands::print::get_print_act1_data,
+            commands::print::print_current_window,
         ])
         .run(tauri::generate_context!())
         .expect("error while running VibePBL Desktop");

@@ -32,7 +32,7 @@ The universal macOS DMG supports both Intel and Apple Silicon Macs. It is ad-hoc
 1. Add presenter names in **Presenter randomizer**.
 2. Run the fair presenter randomizer.
 3. Override an assignment manually when the tutorial group requires it.
-4. Cycle each hypothesis through Unchecked, Confirmed, Wrong, and Investigating as evidence is presented.
+4. In Act 2, cycle each hypothesis through Unchecked, Correct, and Wrong as evidence is presented. Act 1 uses a separate blue Prioritize marker.
 
 Act 2 verification updates the same hypothesis records used in Act 1, so both views remain consistent.
 
@@ -130,7 +130,7 @@ VibePBL is an educational organization tool. It does not provide medical advice,
 
 ## Releasing
 
-When a version tag such as `v1.0.11` is pushed, GitHub Actions publishes the standalone Windows executable and a universal macOS DMG. MSI, NSIS, and PKG assets are not produced. Configure repository Actions permissions to allow release creation. The Windows build is unsigned; the macOS build is ad-hoc signed and not notarized, so operating-system warnings may appear.
+When a version tag such as `v1.0.12` is pushed, GitHub Actions publishes the standalone Windows executable and a universal macOS DMG. MSI, NSIS, and PKG assets are not produced. Configure repository Actions permissions to allow release creation. The Windows build is unsigned; the macOS build is ad-hoc signed and not notarized, so operating-system warnings may appear.
 
 ## License
 

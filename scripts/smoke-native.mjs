@@ -115,9 +115,9 @@ try {
     case_images: [{ id:'image-check', filename:'image-check.png', originalName:'ภาพกรณีศึกษา.png', localPath:smokeImage || browserFixturePath, highlights:[{ id:'highlight-check', x:18, y:22, width:34, height:12 }] }],
     terms: [{ id:'term-check', name:'หายใจลำบาก', meaning:'อาการไม่สบายขณะหายใจ' }],
     timeline: [{ id:'time-check', content:'อาการแย่ลง', durationText:'2 สัปดาห์ก่อน', colorTheme:{ name:'Slate', bg:'#f1f5f9', text:'#334155', border:'#94a3b8' } }],
-    problems: [{ id:'prob-check', text:'หายใจลำบากมากขึ้น', status:'none', hypotheses:[{ id:'hyp-check', text:'การติดเชื้อในปอด', status:'none', validation:'wrong', checked:false }] }],
+    problems: [{ id:'prob-check', text:'หายใจลำบากมากขึ้น', status:'none', hypotheses:[{ id:'hyp-check', text:'การติดเชื้อในปอด', status:'prioritized', validation:'wrong', checked:true }] }],
     objectives: [{ id:'lo-check', text:'เปรียบเทียบสาเหตุของอาการหายใจลำบาก', linkedProblemIds:['prob-check'] }],
-    presenter_assignments: { 'lo-check_prob-check':testMemberName },
+    presenter_assignments: { 'main_lo-check':testMemberName, 'sub_lo-check_prob-check':testMemberName },
     is_act1_completed: false
   };
   for (const [fieldName, value] of Object.entries(samples)) {
@@ -162,8 +162,8 @@ try {
   }
   if (routeResults.case.text.includes('Clinical narrative') || await evaluate(client, `Boolean(document.querySelector('#case-editor,.toolbar,.pin,.pin-index'))`)) throw new Error('Removed narrative or pin controls are still present.');
   if (!`${routeResults.terms.text} ${routeResults.terms.controlValues}`.includes('หายใจลำบาก') || !`${routeResults.timeline.text} ${routeResults.timeline.controlValues}`.includes('อาการแย่ลง')) throw new Error('Thai Act 1 data did not render.');
-  if (!routeResults.problems.text.includes('Wrong') || !routeResults.verification.text.includes('Wrong')) throw new Error('Act 1/Act 2 hypothesis status was not synchronized.');
-  if (!routeResults.randomizer.text.includes(testMemberName) || !routeResults.objectives.text.includes('เปรียบเทียบสาเหตุของอาการหายใจลำบาก')) throw new Error('Thai Act 2 assignment or objective mapping did not render.');
+  if (!routeResults.problems.text.includes('Prioritize') || routeResults.problems.text.includes('Correct') || routeResults.problems.text.includes('Wrong') || routeResults.problems.text.includes('Investigating') || !routeResults.verification.text.includes('Wrong') || routeResults.verification.text.includes('Investigating')) throw new Error('Act 1 priority and Act 2 verification states were not separated.');
+  if (!routeResults.randomizer.text.includes(testMemberName) || !routeResults.randomizer.text.includes('Round 1') || !routeResults.randomizer.text.includes('Round 2') || !routeResults.objectives.text.includes('เปรียบเทียบสาเหตุของอาการหายใจลำบาก')) throw new Error('Thai two-round assignment or objective mapping did not render.');
 
   await evaluate(client, `location.hash = '#/terms'`);
   await delay(180);
@@ -182,14 +182,35 @@ try {
   const problemEntry = await evaluate(client, `(() => { const enter=(input,value) => { input.value=value; input.dispatchEvent(new KeyboardEvent('keydown',{ key:'Enter', bubbles:true })); }; enter(document.getElementById('problem-input'),'ไข้สูง'); enter(document.getElementById('hypothesis-input'),'ภาวะติดเชื้อ'); enter(document.getElementById('problem-input'),'อ่อนเพลีย'); enter(document.getElementById('hypothesis-input'),'ภาวะโลหิตจาง'); return { modal:Boolean(document.querySelector('.modal-backdrop')), problems:document.querySelectorAll('[data-problem]').length, hypotheses:document.querySelectorAll('[data-cycle]').length }; })()`);
   await delay(120);
   if (problemEntry.modal || problemEntry.problems !== 3 || problemEntry.hypotheses !== 1) throw new Error(`Problem or hypothesis Enter-to-add failed: ${JSON.stringify(problemEntry)}`);
+  const problemOrdering = await evaluate(client, `(() => { const items=[...document.querySelectorAll('[data-problem]')]; const source=items[2].querySelector('[data-drag-problem]'); const target=items[1]; const sourceRect=source.getBoundingClientRect(); const targetRect=target.getBoundingClientRect(); const pointer={ bubbles:true, pointerId:7, pointerType:'mouse', button:0, clientX:sourceRect.left + sourceRect.width / 2 }; source.dispatchEvent(new PointerEvent('pointerdown',{ ...pointer, buttons:1, clientY:sourceRect.top + sourceRect.height / 2 })); window.dispatchEvent(new PointerEvent('pointermove',{ ...pointer, buttons:1, clientY:targetRect.top + 1 })); window.dispatchEvent(new PointerEvent('pointerup',{ ...pointer, buttons:0, clientY:targetRect.top + 1 })); const order=[...document.querySelectorAll('[data-problem] .list-item-title')].map(item => item.textContent); const priority=document.querySelector('[data-cycle]'); priority.click(); return { order, priority:document.querySelector('[data-cycle]')?.textContent, dragHandles:document.querySelectorAll('[data-drag-problem]').length, nativeDraggables:document.querySelectorAll('[data-drag-problem][draggable="true"]').length, moveButtons:document.querySelectorAll('[data-move-problem]').length }; })()`);
+  await delay(700);
+  const orderedSession = await evaluate(client, invokeExpression('get_session'));
+  if (problemOrdering.order.join('|') !== 'หายใจลำบากมากขึ้น|อ่อนเพลีย|ไข้สูง' || problemOrdering.priority.trim() !== 'Prioritize ★' || problemOrdering.dragHandles !== 3 || problemOrdering.nativeDraggables !== 0 || problemOrdering.moveButtons !== 0 || orderedSession.problems.map(problem => problem.text).join('|') !== problemOrdering.order.join('|') || orderedSession.problems[1].hypotheses[0].status !== 'prioritized') throw new Error(`Problem ordering or Act 1 priority failed: ${JSON.stringify({ problemOrdering, orderedProblems:orderedSession.problems })}`);
 
   await evaluate(client, `location.hash = '#/objectives'`);
   await delay(180);
-  const objectiveEntry = await evaluate(client, `(() => { const input=document.getElementById('objective-input'); input.value='วิเคราะห์แนวทางรักษา'; input.dispatchEvent(new KeyboardEvent('keydown',{ key:'Enter', bubbles:true })); let cards=[...document.querySelectorAll('.objective-card')]; [...cards[0].querySelectorAll('[data-link-lo]')].find(check => !check.checked && !check.disabled)?.click(); cards=[...document.querySelectorAll('.objective-card')]; [...cards.at(-1).querySelectorAll('[data-link-lo]')].find(check => !check.checked && !check.disabled)?.click(); cards=[...document.querySelectorAll('.objective-card')]; return { objectives:cards.length, checkboxes:document.querySelectorAll('[data-link-lo][type="checkbox"]').length, firstLinked:cards[0].querySelectorAll('[data-link-lo]:checked').length, secondLinked:cards.at(-1).querySelectorAll('[data-link-lo]:checked').length, unavailableInSecond:cards.at(-1).querySelectorAll('[data-link-lo]:disabled').length }; })()`);
+  const objectiveEntry = await evaluate(client, `(() => { const input=document.getElementById('objective-input'); input.value='วิเคราะห์แนวทางรักษา'; input.dispatchEvent(new KeyboardEvent('keydown',{ key:'Enter', bubbles:true })); const assignFirstAvailable=card => { const select=card.querySelector('[data-link-select]'); select.value=select.querySelector('option:not([value=""])')?.value || ''; select.dispatchEvent(new Event('change',{ bubbles:true })); }; let cards=[...document.querySelectorAll('.objective-card')]; assignFirstAvailable(cards[0]); cards=[...document.querySelectorAll('.objective-card')]; assignFirstAvailable(cards.at(-1)); cards=[...document.querySelectorAll('.objective-card')]; return { objectives:cards.length, selects:document.querySelectorAll('[data-link-select]').length, firstLinked:cards[0].querySelectorAll('[data-unlink-lo]').length, secondLinked:cards.at(-1).querySelectorAll('[data-unlink-lo]').length, compact:Boolean(document.querySelector('.objective-grid')) }; })()`);
   await delay(800);
   const inlineSession = await evaluate(client, invokeExpression('get_session'));
   const linkedProblems = inlineSession.objectives.flatMap(objective => objective.linkedProblemIds);
-  if (objectiveEntry.objectives !== 2 || objectiveEntry.checkboxes !== 6 || objectiveEntry.firstLinked !== 2 || objectiveEntry.secondLinked !== 1 || objectiveEntry.unavailableInSecond !== 2 || Math.max(...inlineSession.objectives.map(objective => objective.linkedProblemIds.length)) < 2 || new Set(linkedProblems).size !== linkedProblems.length) throw new Error(`Many-to-one problem/objective mapping failed: ${JSON.stringify(objectiveEntry)}`);
+  if (objectiveEntry.objectives !== 2 || objectiveEntry.selects !== 2 || objectiveEntry.firstLinked !== 2 || objectiveEntry.secondLinked !== 1 || !objectiveEntry.compact || Math.max(...inlineSession.objectives.map(objective => objective.linkedProblemIds.length)) < 2 || new Set(linkedProblems).size !== linkedProblems.length) throw new Error(`Many-to-one problem/objective mapping failed: ${JSON.stringify(objectiveEntry)}`);
+
+  await evaluate(client, `location.hash = '#/randomizer'`);
+  await delay(180);
+  await evaluate(client, `(() => { const input=document.getElementById('custom-name'); input.value='Second isolated presenter'; input.dispatchEvent(new KeyboardEvent('keydown',{ key:'Enter', bubbles:true })); })()`);
+  await delay(100);
+  await evaluate(client, `(() => { window.__drawObservations=[]; window.__drawTimer=window.setTimeout; window.setTimeout=(callback) => window.__drawTimer(callback,1); const grid=document.querySelector('.assignment-grid'); window.__drawObserver=new MutationObserver(records => records.forEach(record => { const card=record.target; if (card.classList?.contains('just-drawn')) window.__drawObservations.push({ key:card.dataset.assignmentCard, value:card.querySelector('[data-assignment]')?.value }); })); window.__drawObserver.observe(grid,{ subtree:true, attributes:true, attributeFilter:['class'] }); document.getElementById('randomize').click(); })()`);
+  for (let attempt = 0; attempt < 100; attempt++) {
+    if (await evaluate(client, `!document.getElementById('randomize')?.disabled && window.__drawObservations?.length >= 6`)) break;
+    await delay(50);
+  }
+  const drawState = await evaluate(client, `(() => { window.setTimeout=window.__drawTimer; window.__drawObserver?.disconnect(); return { observations:window.__drawObservations, selected:[...document.querySelectorAll('[data-assignment-card]')].map(card => ({ key:card.dataset.assignmentCard, kind:card.dataset.topicKind, number:Number(card.dataset.topicNumber), value:card.querySelector('[data-assignment]').value })), roundCopy:document.querySelector('#page').innerText }; })()`);
+  const drawnSession = await evaluate(client, invokeExpression('get_session'));
+  const mainAssignments = Object.entries(drawnSession.presenterAssignments).filter(([key, value]) => key.startsWith('main_') && value);
+  const subAssignments = Object.entries(drawnSession.presenterAssignments).filter(([key, value]) => key.startsWith('sub_') && value);
+  const hasNumberCollision = drawState.selected.some(main => main.kind === 'main' && drawState.selected.some(subtopic => subtopic.kind === 'subtopic' && subtopic.number === main.number && subtopic.value === main.value));
+  const normalizedRoundCopy = drawState.roundCopy.toLowerCase();
+  if (drawState.observations.length !== 6 || drawState.observations.some(item => !item.value) || drawState.selected.length !== 6 || drawState.selected.some(item => !item.value) || mainAssignments.length !== 3 || subAssignments.length !== 3 || hasNumberCollision || !normalizedRoundCopy.includes('main topic 3') || !normalizedRoundCopy.includes('subtopic 3')) throw new Error(`Two-round immediate presenter draw failed: ${JSON.stringify({ drawState, assignments:drawnSession.presenterAssignments })}`);
 
   await evaluate(client, `location.hash = '#/problems'`);
   await delay(180);
@@ -243,7 +264,7 @@ try {
       if (printState.hash === '#/print' && printState.heading && printState.fontLoaded) break;
       await delay(100);
     }
-    if (printState.hash !== '#/print' || printState.title !== 'VibePBL Desktop' || printState.heading !== samples.title || !printState.reportText.includes('หายใจลำบาก') || !printState.fontFamily.includes('Sarabun') || !printState.fontLoaded || printState.hasNarrative || !printState.hasPrintButton || !printState.hasBackButton) throw new Error(`Print preview failed: ${JSON.stringify(printState)}`);
+    if (printState.hash !== '#/print' || printState.title !== 'VibePBL Desktop' || printState.heading !== samples.title || !printState.reportText.includes('หายใจลำบาก') || !printState.reportText.includes('PRIORITIZE') || printState.reportText.includes('INVESTIGATING') || !printState.fontFamily.includes('Sarabun') || !printState.fontLoaded || printState.hasNarrative || !printState.hasPrintButton || !printState.hasBackButton) throw new Error(`Print preview failed: ${JSON.stringify(printState)}`);
     await evaluate(client, `history.back()`);
     for (let attempt = 0; attempt < 40; attempt++) {
       if (await evaluate(client, `location.hash !== '#/print' && Boolean(document.getElementById('quick-print'))`)) break;

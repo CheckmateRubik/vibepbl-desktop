@@ -13,5 +13,5 @@ document.getElementById('back-to-session').addEventListener('click', () => {
 });
 document.getElementById('print-report').addEventListener('click', async () => {
   await document.fonts?.ready;
-  window.print();
+  await API.printCurrentWindow();
 });
