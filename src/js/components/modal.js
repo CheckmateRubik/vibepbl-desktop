@@ -1,6 +1,9 @@
+import { esc } from './helpers.js';
+
 export function openModal(title, body, onMount) {
   const root = document.getElementById('modal-root');
-  root.innerHTML = `<div class="modal-backdrop"><section class="modal" role="dialog" aria-modal="true"><header class="modal-header"><strong>${title}</strong><button class="button button-ghost" data-close aria-label="Close">✕</button></header><div class="modal-body">${body}</div></section></div>`;
+  root.innerHTML = `<div class="modal-backdrop"><section class="modal" role="dialog" aria-modal="true"><header class="modal-header"><strong data-modal-title></strong><button class="button button-ghost" data-close aria-label="Close">✕</button></header><div class="modal-body">${body}</div></section></div>`;
+  root.querySelector('[data-modal-title]').textContent = String(title ?? '');
   const close = () => { root.innerHTML = ''; };
   root.querySelector('[data-close]').addEventListener('click', close);
   root.querySelector('.modal-backdrop').addEventListener('click', event => { if (event.target.classList.contains('modal-backdrop')) close(); });
@@ -8,7 +11,11 @@ export function openModal(title, body, onMount) {
 }
 
 export function openFormModal(title, fields, onSubmit, submitLabel = 'Save') {
-  const body = `<form id="modal-form" class="list-stack">${fields.map(field => `<div class="field"><label for="modal-${field.name}">${field.label}</label>${field.type === 'textarea' ? `<textarea id="modal-${field.name}" name="${field.name}" class="textarea" required>${field.value || ''}</textarea>` : field.type === 'select' ? `<select id="modal-${field.name}" name="${field.name}" class="select">${field.options.map(option => `<option value="${option.value}" ${option.value === field.value ? 'selected' : ''}>${option.label}</option>`).join('')}</select>` : `<input id="modal-${field.name}" name="${field.name}" class="input" value="${field.value || ''}" ${field.required === false ? '' : 'required'}>`}</div>`).join('')}<div class="d-flex gap-2"><button class="button button-primary" type="submit">${submitLabel}</button><button class="button button-secondary" type="button" data-cancel>Cancel</button></div></form>`;
+  const body = `<form id="modal-form" class="list-stack" autocomplete="off">${fields.map(field => {
+    const name = esc(field.name);
+    const value = esc(field.value || '');
+    return `<div class="field"><label for="modal-${name}">${esc(field.label)}</label>${field.type === 'textarea' ? `<textarea id="modal-${name}" name="${name}" class="textarea" autocomplete="off" required>${value}</textarea>` : field.type === 'select' ? `<select id="modal-${name}" name="${name}" class="select" autocomplete="off">${field.options.map(option => `<option value="${esc(option.value)}" ${option.value === field.value ? 'selected' : ''}>${esc(option.label)}</option>`).join('')}</select>` : `<input id="modal-${name}" name="${name}" class="input" autocomplete="off" value="${value}" ${field.required === false ? '' : 'required'}>`}</div>`;
+  }).join('')}<div class="d-flex gap-2"><button class="button button-primary" type="submit">${esc(submitLabel)}</button><button class="button button-secondary" type="button" data-cancel>Cancel</button></div></form>`;
   openModal(title, body, (root, close) => {
     root.querySelector('[data-cancel]').addEventListener('click', close);
     root.querySelector('#modal-form').addEventListener('submit', event => {
@@ -21,14 +28,19 @@ export function openFormModal(title, fields, onSubmit, submitLabel = 'Save') {
 }
 
 export function openConfirmModal(title, message, onConfirm, confirmLabel = 'Delete') {
-  const body = `<p class="confirm-message">${message}</p><div class="modal-actions"><button class="button button-danger" type="button" data-confirm>${confirmLabel}</button><button class="button button-secondary" type="button" data-cancel>Cancel</button></div>`;
+  const body = `<p class="confirm-message">${esc(message)}</p><div class="modal-actions"><button class="button button-danger" type="button" data-confirm>${esc(confirmLabel)}</button><button class="button button-secondary" type="button" data-cancel>Cancel</button></div>`;
   openModal(title, body, (root, close) => {
     root.querySelector('[data-cancel]').addEventListener('click', close);
     root.querySelector('[data-confirm]').addEventListener('click', async event => {
       const button = event.currentTarget;
       button.disabled = true;
       try { await onConfirm(); close(); }
-      catch (error) { button.disabled = false; throw error; }
+      catch (error) {
+        button.disabled = false;
+        let message = root.querySelector('[role="alert"]');
+        if (!message) { message = document.createElement('p'); message.setAttribute('role', 'alert'); root.querySelector('.modal-body').append(message); }
+        message.textContent = String(error);
+      }
     });
   });
 }

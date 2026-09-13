@@ -1,5 +1,5 @@
 const invoke = window.__TAURI__?.core?.invoke;
-const isPackagedApp = location.hostname === 'tauri.localhost';
+const isPackagedApp = location.hostname === 'tauri.localhost' || location.protocol === 'tauri:';
 const STORE_KEY = 'vibepbl-browser-preview';
 
 function nativeOnly(message) {
@@ -31,6 +31,9 @@ function previewWrite(field, value) {
 
 export const API = {
   isNative: Boolean(invoke),
+  openWebSearch: (query, engine = 'duckduckgo') => invoke ? invoke('open_web_search', { query, engine }) : nativeOnly('In-app web search is available in the desktop app.'),
+  referenceBrowserAction: action => invoke ? invoke('reference_browser_action', { action }) : nativeOnly('In-app web search is available in the desktop app.'),
+  searchTerminology: (provider, query) => invoke ? invoke('search_terminology', { provider, query }) : nativeOnly('Medical lookup is available in the desktop app. Your glossary still works offline.'),
   getSession: () => desktopOr('get_session', undefined, previewRead),
   saveField: (field, value) => desktopOr('save_session_field', { fieldName: field, jsonValue: JSON.stringify(value) }, () => previewWrite(toCamel(field), value)),
   resetSession: () => desktopOr('reset_session', undefined, () => localStorage.removeItem(STORE_KEY)),
@@ -48,9 +51,12 @@ export const API = {
 
 function toCamel(value) { return value.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase()); }
 function previewAddMember(name) {
+  const clean = name.trim();
+  if (!clean) throw new Error('Enter a presenter name');
+  if ([...clean].length > 120 || /[\u0000-\u001f\u007f]/.test(clean)) throw new Error('Use a presenter name of 120 characters or fewer, without line breaks.');
   const members = JSON.parse(localStorage.getItem('vibepbl-members') || '[]');
-  if (members.some(member => member.name.toLowerCase() === name.trim().toLowerCase())) throw new Error('That member is already in the roster');
-  const member = { id: Date.now(), name: name.trim(), createdAt: new Date().toISOString() };
+  if (members.some(member => member.name.toLowerCase() === clean.toLowerCase())) throw new Error('That member is already in the roster');
+  const member = { id: Math.max(Date.now(), ...members.map(item => item.id + 1)), name: clean, createdAt: new Date().toISOString() };
   members.push(member); localStorage.setItem('vibepbl-members', JSON.stringify(members)); return member;
 }
 function previewRemoveMember(id) {

@@ -7,7 +7,7 @@ export const isHypothesisPrioritized = hypothesis => ['prioritized', 'green', 'y
 
 export function orderProblemsByIds(problems, orderedIds) {
   const byId = new Map(problems.map(problem => [problem.id, problem]));
-  const ordered = orderedIds.map(id => byId.get(id)).filter(Boolean);
+  const ordered = [...new Set(orderedIds)].map(id => byId.get(id)).filter(Boolean);
   const included = new Set(ordered.map(problem => problem.id));
   return [...ordered, ...problems.filter(problem => !included.has(problem.id))];
 }
@@ -64,6 +64,9 @@ export function renderProblems(ctx) {
   document.querySelector('[data-delete-problem]').addEventListener('click', () => {
     if (!confirm('Delete this problem and all of its hypotheses?')) return;
     ctx.setField('problems', ctx.session.problems.filter(problem => problem.id !== selected.id));
+    ctx.setField('objectives', ctx.session.objectives.map(objective => ({
+      ...objective, linkedProblemIds:objective.linkedProblemIds.filter(id => id !== selected.id)
+    })));
     selectedId = undefined;
     ctx.render();
   });
@@ -106,7 +109,27 @@ function problemButton(problem, index, locked) {
 function setupProblemDragging(ctx, locked) {
   if (locked) return;
   const list = document.querySelector('.problem-list');
+  let activeCleanup;
+  ctx.onDispose?.(() => activeCleanup?.());
+  document.querySelectorAll('[data-drag-problem]').forEach(handle => {
+    handle.setAttribute('role', 'button');
+    handle.tabIndex = 0;
+    handle.setAttribute('aria-label', 'Reorder problem. Drag, or use Alt plus Up or Down.');
+    handle.addEventListener('keydown', event => {
+      if (!event.altKey || !['ArrowUp', 'ArrowDown'].includes(event.key)) return;
+      event.preventDefault(); event.stopPropagation();
+      const ids = ctx.session.problems.map(problem => problem.id);
+      const index = ids.indexOf(handle.dataset.dragProblem);
+      const next = index + (event.key === 'ArrowUp' ? -1 : 1);
+      if (next < 0 || next >= ids.length) return;
+      [ids[index], ids[next]] = [ids[next], ids[index]];
+      ctx.setField('problems', orderProblemsByIds(ctx.session.problems, ids));
+      ctx.render();
+      document.querySelector(`[data-drag-problem="${CSS.escape(handle.dataset.dragProblem)}"]`)?.focus();
+    });
+  });
   document.querySelectorAll('[data-drag-problem]').forEach(handle => handle.addEventListener('pointerdown', startEvent => {
+    if (activeCleanup) return;
     if (startEvent.pointerType === 'mouse' && startEvent.button !== 0) return;
     const item = handle.closest('[data-problem]');
     const rect = item.getBoundingClientRect();
@@ -120,45 +143,63 @@ function setupProblemDragging(ctx, locked) {
     item.classList.add('is-pointer-dragging');
     Object.assign(item.style, { left:`${rect.left}px`, top:`${rect.top}px`, width:`${rect.width}px`, height:`${rect.height}px` });
     document.body.classList.add('problem-reordering');
-
-    const move = event => {
-      event.preventDefault();
-      item.style.top = `${event.clientY - pointerOffsetY}px`;
+    const scroller = document.querySelector('.main-shell');
+    let pointerY = startEvent.clientY;
+    let frame;
+    const position = () => {
+      item.style.top = `${pointerY - pointerOffsetY}px`;
       const next = [...list.querySelectorAll('[data-problem]')].find(sibling => {
         const siblingRect = sibling.getBoundingClientRect();
-        return event.clientY < siblingRect.top + siblingRect.height / 2;
+        return pointerY < siblingRect.top + siblingRect.height / 2;
       });
       list.insertBefore(placeholder, next || null);
-      if (event.clientY < 55) window.scrollBy(0, -14);
-      else if (event.clientY > window.innerHeight - 55) window.scrollBy(0, 14);
+    };
+    const scroll = () => {
+      const bounds = scroller.getBoundingClientRect();
+      const toolbarBottom = document.querySelector('.topbar')?.getBoundingClientRect().bottom || bounds.top;
+      const delta = pointerY < toolbarBottom + 45 ? -12 : pointerY > bounds.bottom - 45 ? 12 : 0;
+      if (delta) { scroller.scrollTop += delta; position(); }
+      frame = requestAnimationFrame(scroll);
+    };
+    frame = requestAnimationFrame(scroll);
+
+    const move = event => {
+      if (event.pointerId !== startEvent.pointerId) return;
+      event.preventDefault();
+      pointerY = event.clientY;
+      position();
     };
     const finish = event => {
+      if (event.pointerId !== startEvent.pointerId) return;
       event?.preventDefault();
-      window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', finish);
-      window.removeEventListener('pointercancel', cancel);
-      placeholder.replaceWith(item);
-      item.classList.remove('is-pointer-dragging');
-      item.removeAttribute('style');
-      document.body.classList.remove('problem-reordering');
+      cleanup();
       const orderedIds = [...list.querySelectorAll('[data-problem]')].map(problem => problem.dataset.problem);
       ctx.setField('problems', orderProblemsByIds(ctx.session.problems, orderedIds));
       ctx.render();
     };
     const cancel = event => {
+      if (event?.pointerId !== undefined && event.pointerId !== startEvent.pointerId) return;
       event?.preventDefault();
+      cleanup();
+      ctx.render();
+    };
+    const cleanup = () => {
+      cancelAnimationFrame(frame);
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', finish);
       window.removeEventListener('pointercancel', cancel);
+      window.removeEventListener('blur', cancel);
       placeholder.replaceWith(item);
       item.classList.remove('is-pointer-dragging');
       item.removeAttribute('style');
       document.body.classList.remove('problem-reordering');
-      ctx.render();
+      activeCleanup = undefined;
     };
+    activeCleanup = cleanup;
     window.addEventListener('pointermove', move, { passive:false });
     window.addEventListener('pointerup', finish, { passive:false });
     window.addEventListener('pointercancel', cancel, { passive:false });
+    window.addEventListener('blur', cancel);
   }));
 }
 
@@ -169,7 +210,7 @@ function selectedPanel(ctx, selected, locked) {
 }
 
 function openTextForm(title, label, value, submit) {
-  openFormModal(title, [{ name:'text', label, type:'textarea', value:esc(value) }], ({ text }) => submit(text.trim()));
+  openFormModal(title, [{ name:'text', label, type:'textarea', value }], ({ text }) => submit(text.trim()));
 }
 
 function hypothesisRow(hypothesis, index, locked) {

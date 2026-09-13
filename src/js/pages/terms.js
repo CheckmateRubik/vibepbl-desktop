@@ -1,16 +1,18 @@
 import { esc, emptyState, pageHeader, uid } from '../components/helpers.js';
+import { lookupIcon, lookupPanelMarkup, mountLookup } from '../components/term-lookup.js';
 
 let focusTermId;
 
 export function renderTerms(ctx) {
   const locked = ctx.session.isAct1Completed;
   document.getElementById('page').innerHTML = `
-    ${pageHeader('Terminology clarifier', 'Build a shared glossary without interrupting the group’s clinical reasoning.')}
+    ${pageHeader('Terminology clarifier', 'Build a shared glossary without interrupting the group’s clinical reasoning.', `<button id="toggle-term-lookup" class="button button-secondary" aria-controls="term-lookup" aria-expanded="false">${lookupIcon} Term lookup</button>`)}
     ${locked ? '<div class="lock-banner">🔒 <strong>Act 1 is locked</strong></div>' : ''}
-    <section class="card term-workspace">
+    <div class="terms-layout"><section class="card term-workspace">
       <div class="form-row"><input id="term-input" class="input" placeholder="Enter a medical term to clarify…" ${locked ? 'disabled' : ''}><button id="add-term" class="button button-primary" ${locked ? 'disabled' : ''}>＋ Add term</button></div>
       <div class="term-grid">${ctx.session.terms.length ? ctx.session.terms.map((term, index) => termCard(term, index, locked)).join('') : emptyState('?', 'No terms yet', 'Type a term above and press Enter to add it.')}</div>
-    </section>`;
+    </section>${lookupPanelMarkup()}</div>`;
+  mountLookup(ctx);
 
   const add = () => {
     const input = document.getElementById('term-input');
@@ -42,6 +44,7 @@ function termCard(term, index, locked) {
     <header><span class="code-badge">T${index + 1}</span><input class="term-card-title" data-term-name="${esc(term.id)}" value="${esc(term.name)}" aria-label="Term ${index + 1}" ${locked ? 'disabled' : ''}><button class="button button-ghost" data-delete-term="${esc(term.id)}" aria-label="Delete ${esc(term.name)}" ${locked ? 'disabled' : ''}>🗑</button></header>
     <label class="field-label" for="meaning-${esc(term.id)}">Definition or medical meaning</label>
     <textarea id="meaning-${esc(term.id)}" class="textarea term-definition" data-term-meaning="${esc(term.id)}" placeholder="Add the group’s clarification…" ${locked ? 'disabled' : ''}>${esc(term.meaning || '')}</textarea>
+    <button class="button button-secondary button-sm" data-lookup-term="${esc(term.id)}" type="button">${lookupIcon} Look up</button>
   </article>`;
 }
 

@@ -3,7 +3,38 @@ use std::{fs, path::Path};
 use rusqlite::{params, Connection};
 use tauri::State;
 
-use crate::{models::SessionData, AppState};
+use crate::{
+    models::{ImageMetadata, LearningObjective, Problem, SessionData, Term, TimelineEvent},
+    AppState,
+};
+
+fn parse_stored<T: serde::de::DeserializeOwned>(text: &str, column: usize) -> rusqlite::Result<T> {
+    serde_json::from_str(text).map_err(|error| {
+        rusqlite::Error::FromSqlConversionFailure(
+            column,
+            rusqlite::types::Type::Text,
+            Box::new(error),
+        )
+    })
+}
+
+fn validate_field(field: &str, value: &serde_json::Value) -> Result<(), String> {
+    fn typed<T: serde::de::DeserializeOwned>(value: &serde_json::Value) -> Result<(), String> {
+        serde_json::from_value::<T>(value.clone())
+            .map(|_| ())
+            .map_err(|_| "The session field has an invalid structure. No data was changed.".into())
+    }
+    match field {
+        "case_images" => typed::<Vec<ImageMetadata>>(value),
+        "terms" => typed::<Vec<Term>>(value),
+        "timeline" => typed::<Vec<TimelineEvent>>(value),
+        "problems" => typed::<Vec<Problem>>(value),
+        "objectives" => typed::<Vec<LearningObjective>>(value),
+        "presenter_assignments" => typed::<std::collections::HashMap<String, String>>(value),
+        "is_act1_completed" => typed::<bool>(value),
+        _ => typed::<String>(value),
+    }
+}
 
 const JSON_FIELDS: &[&str] = &[
     "case_images",
@@ -31,12 +62,12 @@ pub fn read_session(connection: &Connection) -> Result<SessionData, String> {
                     title: row.get(1)?,
                     theme: row.get(2)?,
                     case_text: row.get(3)?,
-                    case_images: serde_json::from_str(&case_images).unwrap_or_default(),
-                    terms: serde_json::from_str(&terms).unwrap_or_default(),
-                    timeline: serde_json::from_str(&timeline).unwrap_or_default(),
-                    problems: serde_json::from_str(&problems).unwrap_or_default(),
-                    objectives: serde_json::from_str(&objectives).unwrap_or_default(),
-                    presenter_assignments: serde_json::from_str(&assignments).unwrap_or_else(|_| serde_json::json!({})),
+                    case_images: parse_stored(&case_images, 4)?,
+                    terms: parse_stored(&terms, 5)?,
+                    timeline: parse_stored(&timeline, 6)?,
+                    problems: parse_stored(&problems, 7)?,
+                    objectives: parse_stored(&objectives, 8)?,
+                    presenter_assignments: serde_json::to_value(parse_stored::<std::collections::HashMap<String, String>>(&assignments, 9)?).unwrap(),
                     is_act1_completed: row.get::<_, i64>(10)? != 0,
                     updated_at: row.get(11)?,
                 })
@@ -60,6 +91,10 @@ pub fn save_session_field(
     json_value: String,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
+    const MAX_SESSION_FIELD_BYTES: usize = 10 * 1024 * 1024;
+    if json_value.len() > MAX_SESSION_FIELD_BYTES {
+        return Err("This session field is too large to save safely.".into());
+    }
     let allowed = [
         "title",
         "theme",
@@ -78,6 +113,7 @@ pub fn save_session_field(
 
     let value: serde_json::Value = serde_json::from_str(&json_value)
         .map_err(|_| "Session data is not valid JSON".to_string())?;
+    validate_field(&field_name, &value)?;
     let stored = if JSON_FIELDS.contains(&field_name.as_str()) {
         serde_json::to_string(&value).map_err(|error| error.to_string())?
     } else if field_name == "is_act1_completed" {
@@ -139,6 +175,22 @@ mod tests {
     use super::clear_private_images;
     use std::fs;
     use uuid::Uuid;
+
+    #[test]
+    fn invalid_fields_are_rejected_without_silent_data_loss() {
+        assert!(super::validate_field("terms", &serde_json::json!({})).is_err());
+        assert!(super::validate_field("is_act1_completed", &serde_json::json!("false")).is_err());
+        assert!(super::validate_field("presenter_assignments", &serde_json::json!([])).is_err());
+        assert!(super::validate_field(
+            "objectives",
+            &serde_json::json!([
+                {"id":"lo1","text":"One","linkedProblemIds":["p1"]},
+                {"id":"lo2","text":"Two","linkedProblemIds":["p1"]}
+            ])
+        )
+        .is_ok());
+        assert!(super::parse_stored::<Vec<crate::models::Term>>("not json", 5).is_err());
+    }
 
     #[test]
     fn reset_removes_only_private_image_copies() {

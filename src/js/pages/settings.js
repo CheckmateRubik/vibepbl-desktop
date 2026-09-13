@@ -21,7 +21,7 @@ export function renderSettings(ctx) {
   document.getElementById('reset-session').addEventListener('click', () => openConfirmModal(
     'Delete this session?',
     'This clears the working session, including its text, imported images, and highlights.',
-    async () => { await ctx.API.resetSession(); ctx.setSession(await ctx.API.getSession()); ctx.showToast('Working session reset', 'success'); },
+    async () => { await ctx.resetSession(); ctx.showToast('Working session reset', 'success'); },
     'Delete session'
   ));
 }

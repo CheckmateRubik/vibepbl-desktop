@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>VibePBL web search controls</title>
+    <link rel="stylesheet" href="./css/reference-browser.css">
+  </head>
+  <body>
+    <nav class="browser-toolbar" aria-label="Web search controls">
+      <button type="button" data-action="back" aria-label="Back" title="Back (Alt+Left)">←</button>
+      <button type="button" data-action="forward" aria-label="Forward" title="Forward (Alt+Right)">→</button>
+      <div class="browser-address" title="This page is isolated from your VibePBL workspace">
+        <span class="secure-mark" aria-hidden="true">●</span>
+        <input id="address" value="duckduckgo.com" readonly aria-label="Current web address">
+      </div>
+      <span class="private-label">Private search window</span>
+      <button class="close-browser" type="button" data-action="close" aria-label="Close search window" title="Close">×</button>
+    </nav>
+    <p id="browser-status" role="status" aria-live="polite"></p>
+    <script type="module" src="./js/reference-browser.js"></script>
+  </body>
+</html>

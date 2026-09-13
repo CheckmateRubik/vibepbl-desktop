@@ -1,0 +1,49 @@
+.terms-layout{display:grid;grid-template-columns:minmax(0,1fr);gap:20px;align-items:start}
+.terms-layout.lookup-open{grid-template-columns:minmax(320px,.88fr) minmax(440px,1.12fr);gap:14px}
+.terms-layout .card{min-width:0;margin:0}
+.terms-layout.lookup-open .term-grid{grid-template-columns:minmax(0,1fr)}
+.term-lookup-panel[hidden]{display:none}
+.term-lookup-panel{position:sticky;top:72px;max-height:calc(100vh - 102px);overflow-y:auto}
+.lookup-heading{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.lookup-heading h3{display:flex;align-items:center;gap:8px;margin:0}
+.lookup-heading+.field,#lookup-form{margin-top:15px}
+.lookup-query-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:8px}
+.lookup-query-row .lookup-submit{min-width:105px}
+.lookup-source-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:3px;margin-top:10px;padding:3px;border:1px solid var(--border-color);border-radius:7px;background:var(--bg-app)}
+.lookup-source-button{min-height:34px;padding:6px;border:0;border-radius:4px;background:transparent;color:var(--text-muted);font-size:11px;font-weight:700;cursor:pointer}
+.lookup-source-button:hover{background:color-mix(in srgb,var(--bg-card) 70%,transparent);color:var(--text-main)}
+.lookup-source-button[aria-checked="true"]{background:var(--bg-card);color:var(--primary-accent);box-shadow:0 1px 2px rgb(15 23 42/.08)}
+#lookup-help{min-height:17px;margin:8px 1px 0}
+.lookup-web-engines{display:flex;align-items:center;gap:5px;margin-top:8px}
+.lookup-web-engines[hidden]{display:none}
+.lookup-web-engines button{padding:5px 9px;border:1px solid var(--border-color);border-radius:5px;background:var(--bg-card);color:var(--text-muted);font:inherit;font-size:11px;cursor:pointer}
+.lookup-web-engines button[aria-checked="true"]{border-color:var(--primary-accent);color:var(--primary-accent);background:color-mix(in srgb,var(--primary-accent) 8%,var(--bg-card))}
+#lookup-status{min-height:18px;margin-top:13px}
+.lookup-results{display:grid;gap:13px}
+.lookup-result{border-top:1px solid var(--border-color);padding-top:13px;min-width:0}
+.lookup-result h4{margin:7px 0;font-size:19px}
+.lookup-result details{margin:10px 0}
+.lookup-result summary{cursor:pointer;color:var(--primary-accent)}
+.lookup-summary{white-space:pre-wrap;line-height:1.55;overflow-wrap:anywhere}
+.lookup-source{overflow-wrap:anywhere}
+.lookup-source-details{font-size:12px}
+.lookup-destination{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:9px;margin:12px 0 8px}
+.lookup-destination .select{padding-block:8px}
+.lookup-add{width:100%}
+.lookup-create-hint{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:12px 0 8px;padding:9px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-app);font-size:12px}
+.lookup-create-hint span{color:var(--text-muted)}
+.lookup-create-hint strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lookup-browser-card{margin-top:4px;padding:16px;border:1px solid var(--border-color);background:var(--input-bg)}
+.lookup-browser-card p{margin:7px 0 12px}
+.lookup-browser-controls{display:flex;flex-wrap:wrap;gap:7px}
+.lookup-privacy{margin:18px 0 0;padding-top:13px;border-top:1px solid var(--border-color)}
+.term-card>[data-lookup-term]{margin-top:12px}
+.button svg{flex-shrink:0}
+@media(max-width:1150px){.terms-layout.lookup-open{grid-template-columns:minmax(0,1fr)}.term-lookup-panel{order:-1;position:static;max-height:75vh}}
+@media(max-width:520px){.lookup-query-row{grid-template-columns:1fr}.lookup-query-row .lookup-submit{width:100%}.lookup-source-tabs{grid-template-columns:1fr}.lookup-destination{grid-template-columns:1fr}}
+
+html[data-theme="retro"] .lookup-source-tabs{padding:0;border:0;background:transparent}
+html[data-theme="retro"] .lookup-source-button{border:2px outset #fff;background:#d4d0c8}
+html[data-theme="retro"] .lookup-source-button[aria-checked="true"]{border-style:inset;background:#fff;box-shadow:none}
+html[data-theme="retro"] .lookup-web-engines button{border:2px outset #fff;border-radius:0;background:#d4d0c8}
+html[data-theme="retro"] .lookup-web-engines button[aria-checked="true"]{border-style:inset;background:#fff}

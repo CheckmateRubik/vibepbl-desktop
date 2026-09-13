@@ -1,4 +1,5 @@
 import { printReport } from '../components/print-report.js';
+import { waitForPrintReady } from '../components/print-ready.js';
 
 export function renderPrint(ctx) {
   const session = {
@@ -16,9 +17,11 @@ export function renderPrint(ctx) {
     if (history.length > 1) history.back();
     else location.hash = '#/objectives';
   });
-  document.getElementById('print-now').addEventListener('click', async () => {
-    await document.fonts?.ready;
-    try { await ctx.API.printCurrentWindow(); }
+  document.getElementById('print-now').addEventListener('click', async event => {
+    const button = event.currentTarget;
+    button.disabled = true;
+    try { await ctx.flushSaves(); await waitForPrintReady(document.querySelector('.print-report')); await ctx.API.printCurrentWindow(); }
     catch (error) { ctx.showToast(String(error), 'error'); }
+    finally { button.disabled = false; }
   });
 }

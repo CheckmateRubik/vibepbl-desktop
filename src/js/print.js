@@ -1,5 +1,6 @@
 import { API } from './api.js';
 import { printReport } from './components/print-report.js';
+import { waitForPrintReady } from './components/print-ready.js';
 
 const payload = await API.getPrintData();
 const session = {
@@ -12,6 +13,6 @@ document.getElementById('back-to-session').addEventListener('click', () => {
   else window.location.assign('./index.html');
 });
 document.getElementById('print-report').addEventListener('click', async () => {
-  await document.fonts?.ready;
-  await API.printCurrentWindow();
+  try { await waitForPrintReady(document.getElementById('report')); await API.printCurrentWindow(); }
+  catch (error) { alert(`Could not print: ${error}`); }
 });

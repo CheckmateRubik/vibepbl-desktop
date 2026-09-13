@@ -15,7 +15,7 @@ await mkdir(join(dataDirectory, 'images'), { recursive:true });
 await writeFile(resetSentinel, 'private image copy');
 await writeFile(browserFixturePath, Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64'));
 const port = 9333;
-const app = spawn(executable, [], {
+const launch = () => spawn(executable, [], {
   env: {
     ...process.env,
     VIBEPBL_DATA_DIR: dataDirectory,
@@ -25,6 +25,7 @@ const app = spawn(executable, [], {
   stdio: ['ignore', 'pipe', 'pipe'],
   windowsHide: true
 });
+let app = launch();
 
 const delay = milliseconds => new Promise(resolveDelay => setTimeout(resolveDelay, milliseconds));
 
@@ -187,18 +188,148 @@ try {
   const orderedSession = await evaluate(client, invokeExpression('get_session'));
   if (problemOrdering.order.join('|') !== 'หายใจลำบากมากขึ้น|อ่อนเพลีย|ไข้สูง' || problemOrdering.priority.trim() !== 'Prioritize ★' || problemOrdering.dragHandles !== 3 || problemOrdering.nativeDraggables !== 0 || problemOrdering.moveButtons !== 0 || orderedSession.problems.map(problem => problem.text).join('|') !== problemOrdering.order.join('|') || orderedSession.problems[1].hypotheses[0].status !== 'prioritized') throw new Error(`Problem ordering or Act 1 priority failed: ${JSON.stringify({ problemOrdering, orderedProblems:orderedSession.problems })}`);
 
+  // Exercise actual WebView mouse input as well as the pointer-handler regression above.
+  const dragProblem = async (from, to) => {
+    const points = await evaluate(client, `(() => {const rows=[...document.querySelectorAll('[data-problem]')]; rows[${from}].scrollIntoView({block:'center'}); const source=rows[${from}].querySelector('[data-drag-problem]').getBoundingClientRect(); const target=rows[${to}].getBoundingClientRect();return {x:source.left+source.width/2,y:source.top+source.height/2,end:target.top+2};})()`);
+    await client.send('Input.dispatchMouseEvent', {type:'mouseMoved',x:points.x,y:points.y});
+    await client.send('Input.dispatchMouseEvent', {type:'mousePressed',button:'left',buttons:1,clickCount:1,x:points.x,y:points.y});
+    for (let step=1;step<=6;step++) {
+      await client.send('Input.dispatchMouseEvent', {type:'mouseMoved',button:'left',buttons:1,x:points.x,y:points.y+(points.end-points.y)*step/6});
+    }
+    await client.send('Input.dispatchMouseEvent', {type:'mouseReleased',button:'left',buttons:0,clickCount:1,x:points.x,y:points.end});
+    await delay(120);
+  };
+  await dragProblem(2,1);
+  const actualDragOrder = await evaluate(client, `[...document.querySelectorAll('[data-problem] .list-item-title')].map(item=>item.textContent).join('|')`);
+  if (actualDragOrder !== 'หายใจลำบากมากขึ้น|ไข้สูง|อ่อนเพลีย') throw new Error(`Actual mouse drag failed: ${actualDragOrder}`);
+  await dragProblem(2,1);
+  if (await evaluate(client, `[...document.querySelectorAll('[data-problem] .list-item-title')].map(item=>item.textContent).join('|')`) !== problemOrdering.order.join('|')) throw new Error('Actual mouse drag did not restore ordering.');
+
   await evaluate(client, `location.hash = '#/objectives'`);
   await delay(180);
   const objectiveEntry = await evaluate(client, `(() => { const input=document.getElementById('objective-input'); input.value='วิเคราะห์แนวทางรักษา'; input.dispatchEvent(new KeyboardEvent('keydown',{ key:'Enter', bubbles:true })); const assignFirstAvailable=card => { const select=card.querySelector('[data-link-select]'); select.value=select.querySelector('option:not([value=""])')?.value || ''; select.dispatchEvent(new Event('change',{ bubbles:true })); }; let cards=[...document.querySelectorAll('.objective-card')]; assignFirstAvailable(cards[0]); cards=[...document.querySelectorAll('.objective-card')]; assignFirstAvailable(cards.at(-1)); cards=[...document.querySelectorAll('.objective-card')]; return { objectives:cards.length, selects:document.querySelectorAll('[data-link-select]').length, firstLinked:cards[0].querySelectorAll('[data-unlink-lo]').length, secondLinked:cards.at(-1).querySelectorAll('[data-unlink-lo]').length, compact:Boolean(document.querySelector('.objective-grid')) }; })()`);
   await delay(800);
   const inlineSession = await evaluate(client, invokeExpression('get_session'));
   const linkedProblems = inlineSession.objectives.flatMap(objective => objective.linkedProblemIds);
-  if (objectiveEntry.objectives !== 2 || objectiveEntry.selects !== 2 || objectiveEntry.firstLinked !== 2 || objectiveEntry.secondLinked !== 1 || !objectiveEntry.compact || Math.max(...inlineSession.objectives.map(objective => objective.linkedProblemIds.length)) < 2 || new Set(linkedProblems).size !== linkedProblems.length) throw new Error(`Many-to-one problem/objective mapping failed: ${JSON.stringify(objectiveEntry)}`);
+  if (objectiveEntry.objectives !== 2 || objectiveEntry.selects !== 2 || objectiveEntry.firstLinked !== 2 || objectiveEntry.secondLinked !== 1 || !objectiveEntry.compact || new Set(linkedProblems).size !== 2 || !inlineSession.objectives.every(objective => objective.linkedProblemIds.includes('prob-check'))) throw new Error(`Shared problem/objective mapping failed: ${JSON.stringify(objectiveEntry)}`);
+  // Unlink only the second objective, confirm the first is unchanged, then relink.
+  await evaluate(client, `document.querySelectorAll('.objective-card')[1].querySelector('[data-unlink-lo]').click()`);
+  const unlinked = await evaluate(client, `Array.from(document.querySelectorAll('.objective-card'), card => card.querySelectorAll('[data-unlink-lo]').length)`);
+  if (unlinked.join(',') !== '2,0') throw new Error('Unlink affected another objective.');
+  await evaluate(client, `(() => {const select=document.querySelectorAll('[data-link-select]')[1];select.value='prob-check';select.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+
+  await evaluate(client, `location.hash='#/terms'`);
+  await delay(180);
+  await evaluate(client, `document.querySelector('[data-lookup-term]').click()`);
+  const lookupPanel = await evaluate(client, `({visible:!document.getElementById('term-lookup').hidden,query:document.getElementById('lookup-query').value,remoteFrames:document.querySelectorAll('iframe').length})`);
+  if (!lookupPanel.visible || !lookupPanel.query || lookupPanel.remoteFrames) throw new Error('In-app medical lookup panel failed.');
+  if (await evaluate(client, `getComputedStyle(document.getElementById('term-lookup')).maxHeight`) === 'none') throw new Error('Lookup results do not have a bounded scrolling panel.');
+  // Untrusted result markup must be rendered as text, never executed.
+  await evaluate(client, `(async () => {const {API}=await import('./js/api.js');window.__realLookup=API.searchTerminology;API.searchTerminology=async()=>({retrievedAt:new Date().toISOString(),results:[{title:'Reference test',summary:'<p>Safe summary for the glossary.</p><script>window.__lookupInjected=true</script><img src=x onerror="window.__lookupInjected=true">',source:'Test source',url:'https://medlineplus.gov/asthma.html'}]});document.getElementById('lookup-query').value='asthma';document.getElementById('lookup-form').requestSubmit();})()`);
+  await delay(100);
+  const safeLookup = await evaluate(client, `({injected:Boolean(window.__lookupInjected),images:document.querySelectorAll('#lookup-results img').length,summary:document.querySelector('.lookup-summary')?.textContent})`);
+  if (safeLookup.injected || safeLookup.images || !safeLookup.summary?.includes('Safe summary')) throw new Error('Lookup HTML was not safely converted to text.');
+  await evaluate(client, `(() => {const target=document.querySelector('[data-result-target]');if(target){target.value='';target.dispatchEvent(new Event('change',{bubbles:true}));}document.querySelector('.lookup-add').click();})()`);
+  await delay(150);
+  const glossaryWithSource = await evaluate(client, invokeExpression('get_session'));
+  if (!glossaryWithSource.terms.some(term => term.name === 'asthma' && term.meaning.includes('Source: Reference test'))) throw new Error('Direct term creation or lookup attribution was not saved.');
+  await evaluate(client, `(async () => {const {API}=await import('./js/api.js');API.searchTerminology=window.__realLookup;})()`);
+
+  const offlineMesh = await evaluate(client, `(async()=>{const start=performance.now();const response=await window.__TAURI__.core.invoke('search_terminology',{provider:'mesh',query:'atrial defib'});return {response,elapsed:performance.now()-start};})()`);
+  if (offlineMesh.response.results[0]?.title !== 'Atrial Fibrillation' || offlineMesh.elapsed > 1500 || !offlineMesh.response.results[0]?.source.includes('MeSH 2026 offline')) throw new Error(`Bundled MeSH lookup failed or was unexpectedly slow: ${JSON.stringify(offlineMesh)}`);
+  const typoMesh = await evaluate(client, invokeExpression('search_terminology',{provider:'mesh',query:'splenomegely'}));
+  if (typoMesh.results[0]?.title !== 'Splenomegaly' || typoMesh.results[0]?.matchKind !== 'suggested') throw new Error(`Offline typo-tolerant MeSH lookup failed: ${JSON.stringify(typoMesh.results?.slice(0,2))}`);
+  console.log(`Bundled MeSH typo and incomplete-term matching passed in ${Math.round(offlineMesh.elapsed)} ms.`);
+
+  if (process.env.VIBEPBL_CHECK_LOOKUP === '1') {
+    const liveLookup = await evaluate(client, invokeExpression('search_terminology',{provider:'medline',query:'asthma'}));
+    if (!liveLookup.results?.length || !liveLookup.results[0].url.startsWith('https://medlineplus.gov/')) throw new Error('Live MedlinePlus lookup failed.');
+    const cached = await evaluate(client, invokeExpression('search_terminology',{provider:'medline',query:'asthma'}));
+    if (cached.retrievedAt !== liveLookup.retrievedAt) throw new Error('Lookup cache did not reuse the response.');
+    console.log('Live key-free MedlinePlus search and cache passed.');
+    await evaluate(client, `(() => {document.querySelector('[data-lookup-provider="medline"]').click();const input=document.getElementById('lookup-query');input.value='asthma';input.dispatchEvent(new Event('input',{bubbles:true}));document.getElementById('lookup-form').requestSubmit();})()`);
+    for (let attempt=0;attempt<30;attempt++) {
+      if (await evaluate(client, `Boolean(document.querySelector('.lookup-result h4'))`)) break;
+      await delay(100);
+    }
+    const displayed = await evaluate(client, `document.querySelector('.lookup-result h4')?.textContent`);
+    if (!displayed?.toLowerCase().includes('asthma')) throw new Error('Live search results were not shown inside the app.');
+    const mesh = await evaluate(client, invokeExpression('search_terminology',{provider:'mesh',query:'splenomegaly'}));
+    if (mesh.results[0]?.title !== 'Splenomegaly' || mesh.results[0]?.matchKind !== 'exact' || !mesh.results[0]?.summary.includes('Enlargement of the spleen')) throw new Error(`Exact MeSH definition failed: ${JSON.stringify(mesh.results?.slice(0,3))}`);
+    await evaluate(client, `document.querySelector('[data-lookup-provider="mesh"]').click();document.getElementById('lookup-query').value='splenomegaly';document.getElementById('lookup-form').requestSubmit()`);
+    for (let attempt=0;attempt<30;attempt++) {
+      if (await evaluate(client, `document.querySelector('.lookup-result h4')?.textContent === 'Splenomegaly'`)) break;
+      await delay(100);
+    }
+    const definition = await evaluate(client, `({title:document.querySelector('.lookup-result h4')?.textContent,text:document.querySelector('.lookup-summary')?.textContent,match:document.querySelector('.lookup-result .small.muted')?.textContent})`);
+    if (definition.title !== 'Splenomegaly' || !definition.match.includes('Exact match') || !definition.text.includes('Enlargement of the spleen')) throw new Error('Exact definition was not displayed.');
+    console.log('Offline MeSH exact-term definition passed.');
+    if (process.env.VIBEPBL_SCREENSHOTS === '1') {
+      await evaluate(client, `document.documentElement.dataset.theme='default';document.querySelector('.main-shell').scrollTop=0`);
+      await delay(150);
+      const screenshot = await client.send('Page.captureScreenshot', {format:'png'});
+      const directory = resolve('src-tauri/target/qa');
+      await mkdir(directory,{recursive:true});
+      await writeFile(join(directory,'medical-lookup.png'),Buffer.from(screenshot.data,'base64'));
+      await evaluate(client, `document.documentElement.dataset.theme='retro'`);
+    }
+    await evaluate(client, `document.querySelector('[data-lookup-provider="web"]').click();document.querySelector('[data-web-engine="duckduckgo"]').click();document.getElementById('lookup-form').requestSubmit()`);
+    let browserPage;
+    for (let attempt=0;attempt<50;attempt++) {
+      const pages=await fetch(`http://127.0.0.1:${port}/json/list`).then(response=>response.json());
+      browserPage=pages.find(item=>item.type==='page' && item.url.startsWith('https://duckduckgo.com/'));
+      if (browserPage) break;
+      await delay(200);
+    }
+    if (!browserPage) throw new Error('Search did not open in a native VibePBL WebView.');
+    const browserClient=await connect(browserPage.webSocketDebuggerUrl);
+    let toolbarPage;
+    for (let attempt=0;attempt<30;attempt++) {
+      const pages=await fetch(`http://127.0.0.1:${port}/json/list`).then(response=>response.json());
+      toolbarPage=pages.find(item=>item.type==='page' && item.url.includes('reference-browser.html'));
+      if (toolbarPage) break;
+      await delay(100);
+    }
+    if (!toolbarPage) throw new Error('Search window did not expose its local browser controls.');
+    const toolbarClient=await connect(toolbarPage.webSocketDebuggerUrl);
+    try {
+      const isolation=await evaluate(browserClient, `(async()=>{const invoke=window.__TAURI__?.core?.invoke || window.__TAURI_INTERNALS__?.invoke;if(!invoke)return 'no bridge';try{await invoke('get_session');return 'WORKSPACE ACCESS';}catch{return 'denied';}})()`);
+      if (isolation==='WORKSPACE ACCESS') throw new Error('Remote search could access the session.');
+      const toolbar=await evaluate(toolbarClient, `({buttons:document.querySelectorAll('[data-action]').length,address:document.getElementById('address')?.value,bridge:typeof window.__TAURI__?.core?.invoke})`);
+      if (toolbar.buttons !== 3 || !toolbar.address.includes('duckduckgo.com') || toolbar.bridge !== 'function') throw new Error(`Search toolbar failed: ${JSON.stringify(toolbar)}`);
+      // Navigating the reusable browser with a second search creates a stable,
+      // same-provider history entry without depending on third-party link markup.
+      await evaluate(client, invokeExpression('open_web_search',{query:'asthma'}));
+      await delay(1200);
+      await evaluate(toolbarClient, `document.querySelector('[data-action="back"]').click()`);
+      await delay(1200);
+      const url=await evaluate(browserClient, 'location.href');
+      if (!url.startsWith('https://duckduckgo.com/') || !decodeURIComponent(url).toLowerCase().includes('splenomegaly')) throw new Error(`Browser back navigation failed: ${url}`);
+      await evaluate(toolbarClient, `document.querySelector('[data-action="forward"]').click()`);
+      await delay(1200);
+      if (!decodeURIComponent(await evaluate(browserClient, 'location.href')).toLowerCase().includes('asthma')) throw new Error('Browser Forward navigation failed.');
+      await evaluate(client, invokeExpression('open_web_search',{query:'atrial fibrillation',engine:'google'}));
+      await delay(1200);
+      const googleUrl=await evaluate(browserClient, 'location.href');
+      if (!googleUrl.startsWith('https://www.google.com/') || !decodeURIComponent(googleUrl).toLowerCase().includes('atrial')) throw new Error(`Google search failed: ${googleUrl}`);
+      await evaluate(browserClient, `location.assign('https://accounts.google.com/ServiceLogin')`);
+      await delay(500);
+      if ((await evaluate(browserClient, 'location.hostname')) === 'accounts.google.com') throw new Error('Embedded Google account sign-in was not blocked.');
+      if (process.env.VIBEPBL_SCREENSHOTS === '1') {
+        const screenshot=await toolbarClient.send('Page.captureScreenshot',{format:'png'});
+        const directory=resolve('src-tauri/target/qa');
+        await mkdir(directory,{recursive:true});
+        await writeFile(join(directory,'web-search-toolbar.png'),Buffer.from(screenshot.data,'base64'));
+      }
+      console.log('Google and DuckDuckGo search, local browser toolbar, Back/Forward, sign-in blocking, and workspace isolation passed.');
+    } finally { toolbarClient.close(); browserClient.close(); }
+    // Leave it open: the existing close/reopen test must also close this child.
+  }
 
   await evaluate(client, `location.hash = '#/randomizer'`);
   await delay(180);
   await evaluate(client, `(() => { const input=document.getElementById('custom-name'); input.value='Second isolated presenter'; input.dispatchEvent(new KeyboardEvent('keydown',{ key:'Enter', bubbles:true })); })()`);
-  await delay(100);
+  await delay(350);
   await evaluate(client, `(() => { window.__drawObservations=[]; window.__drawTimer=window.setTimeout; window.setTimeout=(callback) => window.__drawTimer(callback,1); const grid=document.querySelector('.assignment-grid'); window.__drawObserver=new MutationObserver(records => records.forEach(record => { const card=record.target; if (card.classList?.contains('just-drawn')) window.__drawObservations.push({ key:card.dataset.assignmentCard, value:card.querySelector('[data-assignment]')?.value }); })); window.__drawObserver.observe(grid,{ subtree:true, attributes:true, attributeFilter:['class'] }); document.getElementById('randomize').click(); })()`);
   for (let attempt = 0; attempt < 100; attempt++) {
     if (await evaluate(client, `!document.getElementById('randomize')?.disabled && window.__drawObservations?.length >= 6`)) break;
@@ -274,6 +405,8 @@ try {
 
   await evaluate(client, `location.hash = '#/settings'`);
   await delay(180);
+  // Reset immediately after typing: a delayed autosave must not resurrect it.
+  await evaluate(client, `(() => { const input=document.getElementById('settings-title'); input.value='Must not survive reset'; input.dispatchEvent(new Event('input',{bubbles:true})); })()`);
   await evaluate(client, `document.getElementById('reset-session').click()`);
   const resetDialog = await evaluate(client, `({ title:document.querySelector('.modal-header strong')?.textContent, inputs:document.querySelectorAll('#modal-root input').length, confirm:document.querySelector('[data-confirm]')?.textContent })`);
   if (resetDialog.title !== 'Delete this session?' || resetDialog.inputs !== 0 || !resetDialog.confirm?.includes('Delete session')) throw new Error(`Reset confirmation is incorrect: ${JSON.stringify(resetDialog)}`);
@@ -289,12 +422,27 @@ try {
   const membersAfterReset = await evaluate(client, invokeExpression('get_members'));
   if (!membersAfterReset.some(member => member.id === testMember.id)) throw new Error('Reset removed the persistent member roster.');
 
-  await evaluate(client, invokeExpression('remove_member', { id:testMember.id }));
+  if (!membersAfterReset.some(member => member.name === 'Second isolated presenter')) throw new Error('Presenter added through the UI was not persisted.');
+  for (const member of membersAfterReset) await evaluate(client, invokeExpression('remove_member', { id:member.id }));
   const membersAfterRemove = await evaluate(client, invokeExpression('get_members'));
   if (membersAfterRemove.length) throw new Error('Roster cleanup failed in the isolated test database.');
+  const previousNativeErrors = [...client.errors];
 
-  const result = { page:{ title:page.title, url:page.url }, bridge:bridge.result.value, session:{ id:saved.id, title:saved.title }, routes:Object.keys(routeResults), nativeErrors:client.errors };
-  if (!result.bridge.hasTauri || !result.bridge.hasInvoke || result.session.id !== 1 || client.errors.length) throw new Error(`Native bridge check failed: ${JSON.stringify(result)}`);
+  await evaluate(client, `(() => {const input=document.getElementById('settings-title');input.value='Saved immediately before closing';input.dispatchEvent(new Event('input',{bubbles:true}));setTimeout(()=>document.getElementById('window-close').click(),20);})()`);
+  for (let attempt=0;attempt<60 && app.exitCode===null;attempt++) await delay(100);
+  if (app.exitCode===null) throw new Error('Save-before-close handshake did not close the app.');
+  client.close();
+  app=launch();
+  const reopened=await findPage();
+  client=await connect(reopened.webSocketDebuggerUrl);
+  let reopenedSession;
+  for(let attempt=0;attempt<40;attempt++) {
+    try {reopenedSession=await evaluate(client,invokeExpression('get_session'));break;}catch{await delay(100);}
+  }
+  if(reopenedSession?.title!=='Saved immediately before closing') throw new Error('The last typed edit was lost on close/restart.');
+
+  const result = { page:{ title:page.title, url:page.url }, bridge:bridge.result.value, session:{ id:saved.id, title:saved.title }, routes:Object.keys(routeResults), nativeErrors:[...previousNativeErrors,...client.errors] };
+  if (!result.bridge.hasTauri || !result.bridge.hasInvoke || result.session.id !== 1 || result.nativeErrors.length) throw new Error(`Native bridge check failed: ${JSON.stringify(result)}`);
   console.log(`Native release checks OK: ${JSON.stringify(result)}`);
 } finally {
   client?.close();

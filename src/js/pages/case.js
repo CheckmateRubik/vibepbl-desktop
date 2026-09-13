@@ -21,13 +21,13 @@ export function renderCase(ctx) {
     </section>`;
 
   document.getElementById('add-image').addEventListener('click', async () => {
-    try { const image = await ctx.API.pickImage(); session.caseImages.push(image); ctx.render(); ctx.showToast('Case image imported', 'success'); }
+    try { await ctx.flushSaves(); const image = await ctx.API.pickImage(); session.caseImages.push(image); ctx.render(); ctx.showToast('Case image imported', 'success'); }
     catch (error) { if (!String(error).includes('canceled')) ctx.showToast(String(error), 'error'); }
   });
   document.querySelectorAll('[data-image]').forEach(button => button.addEventListener('click', () => openHighlightEditor(ctx, button.dataset.image)));
   document.querySelectorAll('[data-delete-image]').forEach(button => button.addEventListener('click', async () => {
     if (!confirm('Delete this imported image and its highlights?')) return;
-    try { await ctx.API.deleteImage(button.dataset.deleteImage); session.caseImages = session.caseImages.filter(image => image.id !== button.dataset.deleteImage); ctx.render(); }
+    try { await ctx.flushSaves(); await ctx.API.deleteImage(button.dataset.deleteImage); session.caseImages = session.caseImages.filter(image => image.id !== button.dataset.deleteImage); ctx.render(); }
     catch (error) { ctx.showToast(String(error), 'error'); }
   }));
 }
@@ -50,7 +50,7 @@ function openHighlightEditor(ctx, imageId) {
     }));
   };
 
-  openModal(esc(image.originalName), `
+  openModal(image.originalName, `
     <div class="image-zoom-toolbar" aria-label="Image zoom controls"><button id="zoom-out" class="button button-secondary button-sm" aria-label="Zoom out">−</button><strong id="zoom-readout">100%</strong><button id="zoom-in" class="button button-secondary button-sm" aria-label="Zoom in">＋</button><button id="zoom-fit" class="button button-secondary button-sm">Fit image</button></div>
     <div class="highlight-stage"><div id="highlight-image-wrap" class="highlight-image-wrap ${locked ? 'is-locked' : ''}"><img id="highlight-image" src="${esc(ctx.API.imageUrl(image.localPath))}" alt="${esc(image.originalName)}" draggable="false"><div id="highlight-layer"></div></div></div>
     <div class="highlight-footer"><p>${locked ? 'Act 1 is locked.' : 'Drag over a word or area to highlight it. Click a highlight to remove it.'}</p><div class="highlight-actions"><strong id="highlight-total"></strong>${locked ? '' : '<button id="clear-highlights" class="button button-secondary button-sm">Clear highlights</button>'}</div></div>`, root => {

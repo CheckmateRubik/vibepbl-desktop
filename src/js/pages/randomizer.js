@@ -1,6 +1,5 @@
 import { esc, pageHeader } from '../components/helpers.js';
 
-let customNames = [];
 let rolling = false;
 
 const shuffle = array => {
@@ -67,8 +66,22 @@ export function fairRandomizeAvoiding(members, topicKeys, forbiddenByKey = {}) {
 }
 
 export function createTwoRoundAssignments(members, rounds) {
+  members = [...new Set(members)];
   const mainKeys = rounds.mainTopics.map(topic => topic.key);
   const subtopicKeys = rounds.subtopics.map(topic => topic.key);
+  const mainNumbers = new Set(rounds.mainTopics.map(topic => topic.number));
+  // The UI uses equal, paired rounds. Rotate presenter identities instead of
+  // constructing a quadratic topic-to-slot matching graph for this common case.
+  if (mainKeys.length && mainKeys.length === subtopicKeys.length && mainNumbers.size === mainKeys.length && rounds.subtopics.every(topic => mainNumbers.has(topic.number))) {
+    if (members.length < 2) throw new Error('At least two presenters are required for different main and subtopic numbers.');
+    const main = fairRandomize(members, mainKeys);
+    const order = shuffle(members);
+    const shift = 1 + Math.floor(Math.random() * (order.length - 1));
+    const alternate = new Map(order.map((name, index) => [name, order[(index + shift) % order.length]]));
+    const mainByNumber = new Map(rounds.mainTopics.map(topic => [topic.number, main[topic.key]]));
+    const subtopics = Object.fromEntries(rounds.subtopics.map(topic => [topic.key, alternate.get(mainByNumber.get(topic.number))]));
+    return { main, subtopics };
+  }
 
   // Draw the shorter round first. Its assignments are already balanced, so the
   // longer round can remain balanced while avoiding every matching number.
@@ -90,13 +103,14 @@ export function buildDrawRounds(session) {
   const subtopics = [];
   session.objectives.forEach((objective, loIndex) => {
     const loLabel = `LO${loIndex + 1} · ${objective.text}`;
-    objective.linkedProblemIds.forEach((problemId, linkedIndex) => {
+    [...new Set(objective.linkedProblemIds)].forEach((problemId, linkedIndex) => {
       const problemIndex = session.problems.findIndex(problem => problem.id === problemId);
       if (problemIndex < 0) return;
       const number = mainTopics.length + 1;
       const problemDetail = `P${problemIndex + 1} · ${session.problems[problemIndex].text}`;
       mainTopics.push({
-        key:linkedIndex === 0 ? `main_${objective.id}` : `main_${objective.id}_${problemId}`,
+        key:`main_${objective.id}_${problemId}`,
+        legacyKey:linkedIndex === 0 ? `main_${objective.id}` : undefined,
         number,
         kind:'main',
         roundLabel:'Main topic',
@@ -120,28 +134,33 @@ export function buildDrawRounds(session) {
 export function renderRandomizer(ctx) {
   const rounds = buildDrawRounds(ctx.session);
   const topics = [...rounds.mainTopics, ...rounds.subtopics];
-  const people = [...new Set([...ctx.members.map(member => member.name), ...customNames])];
+  const migrated = migrateAssignments(ctx.session.presenterAssignments, topics);
+  if (JSON.stringify(migrated) !== JSON.stringify(ctx.session.presenterAssignments)) ctx.setField('presenterAssignments', migrated);
+  const people = [...new Set(ctx.members.map(member => member.name))];
   const needsTwoPresenters = rounds.mainTopics.length > 0 && rounds.subtopics.length > 0;
   const canDraw = people.length > 0 && rounds.mainTopics.length > 0 && (!needsTwoPresenters || people.length > 1) && !rolling;
   document.getElementById('page').innerHTML = `
     ${pageHeader('Presenter randomizer', 'Draw presenters in two fair rounds. Matching main-topic and subtopic numbers always go to different presenters.', `<button id="randomize" class="button button-primary" ${canDraw ? '' : 'disabled'}>♜ Draw two rounds</button>`)}
     <div class="split-layout">
-      <section class="card"><h3 class="section-title">Presenter pool <span class="muted small">(${people.length})</span></h3><div class="form-row"><input id="custom-name" class="input" data-randomizer-control placeholder="Presenter name"><button id="add-custom" class="button button-secondary" data-randomizer-control>Add</button></div><div class="roster-list mt-3">${people.length ? people.map(name => `<span class="member-chip">${esc(name)}${customNames.includes(name) ? `<button class="button button-ghost button-sm" data-remove-custom="${esc(name)}" data-randomizer-control>✕</button>` : ''}</span>`).join('') : '<span class="muted">Enter presenter names above.</span>'}</div></section>
+      <section class="card"><h3 class="section-title">Presenter pool <span class="muted small">(${people.length})</span></h3><div class="form-row"><input id="custom-name" class="input" data-randomizer-control placeholder="Presenter name"><button id="add-custom" class="button button-secondary" data-randomizer-control>Add</button></div><div class="roster-list mt-3">${people.length ? ctx.members.map(member => `<span class="member-chip">${esc(member.name)}<button class="button button-ghost button-sm" data-remove-member="${member.id}" data-randomizer-control aria-label="Remove ${esc(member.name)} from presenter pool">✕</button></span>`).join('') : '<span class="muted">Enter presenter names above.</span>'}</div></section>
       <section class="card topic-queue"><h3 class="section-title">Draw queue <span class="muted small">(${topics.length})</span></h3>${roundQueue('Round 1 · Main topics', rounds.mainTopics)}${roundQueue('Round 2 · Subtopics', rounds.subtopics)}</section>
     </div>
     <section class="card"><div class="random-stage"><div id="slot-round" class="small muted">TWO-ROUND DRAW</div><div id="slot-name" class="slot-name">Ready when you are</div><div id="slot-topic" class="draw-topic muted">${needsTwoPresenters && people.length === 1 ? 'Add another presenter so matching topic numbers can be separated.' : 'Main topics will be assigned before subtopics.'}</div></div><div class="assignment-grid">${topics.map(topic => assignmentCard(topic, currentAssignment(ctx.session.presenterAssignments, topic), people, rounds, ctx.session.presenterAssignments)).join('')}</div></section>`;
-  const addCustom = () => {
+  let adding = false;
+  const addCustom = async () => {
     const input = document.getElementById('custom-name');
     const name = input.value.trim();
-    if (!name || people.some(item => item.toLowerCase() === name.toLowerCase())) return;
-    customNames.push(name);
-    renderRandomizer(ctx);
+    if (adding || !name || people.some(item => item.toLowerCase() === name.toLowerCase())) return;
+    adding = true;
+    try { await ctx.API.addMember(name); await ctx.refreshMembers(); }
+    catch (error) { ctx.showToast(String(error), 'error'); }
+    finally { adding = false; }
   };
   document.getElementById('add-custom').addEventListener('click', addCustom);
-  document.getElementById('custom-name').addEventListener('keydown', event => { if (event.key === 'Enter') addCustom(); });
-  document.querySelectorAll('[data-remove-custom]').forEach(button => button.addEventListener('click', () => {
-    customNames = customNames.filter(name => name !== button.dataset.removeCustom);
-    renderRandomizer(ctx);
+  document.getElementById('custom-name').addEventListener('keydown', event => { if (event.key === 'Enter' && !event.isComposing) addCustom(); });
+  document.querySelectorAll('[data-remove-member]').forEach(button => button.addEventListener('click', async () => {
+    try { await ctx.API.removeMember(Number(button.dataset.removeMember)); await ctx.refreshMembers(); }
+    catch (error) { ctx.showToast(String(error), 'error'); }
   }));
   document.querySelectorAll('[data-assignment]').forEach(select => select.addEventListener('change', async () => {
     const topic = topics.find(item => item.key === select.dataset.assignment);
@@ -154,7 +173,7 @@ export function renderRandomizer(ctx) {
     }
     const next = { ...ctx.session.presenterAssignments, [select.dataset.assignment]:select.value };
     await ctx.setField('presenterAssignments', next);
-    renderRandomizer(ctx);
+    ctx.render();
   }));
   document.getElementById('randomize').addEventListener('click', () => animateDraw(ctx, people, rounds));
 }
@@ -163,8 +182,17 @@ function roundQueue(title, topics) {
   return `<div class="draw-queue-round"><h4>${title}</h4>${topics.length ? topics.map(topic => `<div class="list-item"><span class="code-badge">${topic.number}</span><div><strong>${esc(topic.label)}</strong><div class="small muted">${esc(topic.detail)}</div></div></div>`).join('') : '<p class="small muted">No linked problem subtopics in this round.</p>'}</div>`;
 }
 
-function currentAssignment(assignments, topic) {
-  return assignments[topic.key] || (topic.legacyKey ? assignments[topic.legacyKey] : '') || '';
+export function currentAssignment(assignments, topic) {
+  return Object.hasOwn(assignments, topic.key) ? assignments[topic.key] : (topic.legacyKey ? assignments[topic.legacyKey] : '') || '';
+}
+
+export function migrateAssignments(assignments, topics) {
+  const next = { ...assignments };
+  for (const topic of topics) {
+    if (!Object.hasOwn(next, topic.key) && topic.legacyKey && Object.hasOwn(next, topic.legacyKey)) next[topic.key] = next[topic.legacyKey];
+    if (topic.legacyKey) delete next[topic.legacyKey];
+  }
+  return next;
 }
 
 function matchingNumberTopic(rounds, topic) {
@@ -174,6 +202,8 @@ function matchingNumberTopic(rounds, topic) {
 }
 
 function assignmentCard(topic, assigned, people, rounds, assignments) {
+  // Preserve historical assignments when a presenter is removed from the pool.
+  if (assigned && !people.includes(assigned)) people = [...people, assigned];
   const counterpart = matchingNumberTopic(rounds, topic);
   const forbiddenPresenter = counterpart ? currentAssignment(assignments, counterpart) : '';
   return `<article class="assignment-card" data-assignment-card="${esc(topic.key)}" data-topic-kind="${topic.kind}" data-topic-number="${topic.number}"><div class="assignment-kind ${topic.kind}">${esc(topic.roundLabel)} ${topic.number}</div><div class="assignment-topic"><strong>${esc(topic.label)}</strong><br>${esc(topic.detail)}</div><select class="select" data-assignment="${esc(topic.key)}" data-previous="${esc(assigned)}"><option value="">Not assigned</option>${people.map(name => `<option value="${esc(name)}" ${assigned === name ? 'selected' : ''} ${forbiddenPresenter === name && assigned !== name ? 'disabled' : ''}>${esc(name)}</option>`).join('')}</select></article>`;
@@ -186,28 +216,31 @@ async function animateDraw(ctx, people, rounds) {
   const stageRound = document.getElementById('slot-round');
   const stageName = document.getElementById('slot-name');
   const stageTopic = document.getElementById('slot-topic');
+  let cancelled = false;
+  ctx.onDispose?.(() => { cancelled = true; rolling = false; });
   let plannedAssignments;
   try {
     plannedAssignments = createTwoRoundAssignments(people, rounds);
   } catch (error) {
     rolling = false;
     ctx.showToast(error.message, 'error');
-    renderRandomizer(ctx);
+    ctx.render();
     return;
   }
   const drawRounds = [
     { label:'ROUND 1 · MAIN TOPICS', topics:rounds.mainTopics, assignments:plannedAssignments.main },
     { label:'ROUND 2 · SUBTOPICS', topics:rounds.subtopics, assignments:plannedAssignments.subtopics }
   ];
-  let savedAssignments = { ...ctx.session.presenterAssignments };
-
+  try {
   for (const [roundIndex, round] of drawRounds.entries()) {
+    if (cancelled) return;
     if (!round.topics.length) continue;
     if (roundIndex > 0) {
       stageRound.textContent = round.label;
       stageName.textContent = 'Round 2';
       stageTopic.textContent = 'Now drawing the linked problem subtopics.';
       await pause(650);
+      if (cancelled) return;
     }
     for (const topic of round.topics) {
       stageRound.textContent = round.label;
@@ -215,23 +248,30 @@ async function animateDraw(ctx, people, rounds) {
       for (let tick = 0; tick < 10; tick++) {
         stageName.textContent = people[Math.floor(Math.random() * people.length)];
         await pause(38 + tick * 9);
+        if (cancelled) return;
       }
       const presenter = round.assignments[topic.key];
       stageName.textContent = presenter;
-      savedAssignments = { ...savedAssignments, [topic.key]:presenter };
-      await ctx.setField('presenterAssignments', savedAssignments);
+      const savedAssignments = { ...ctx.session.presenterAssignments, [topic.key]:presenter };
+      const counterpart = matchingNumberTopic(rounds, topic);
+      if (counterpart && currentAssignment(savedAssignments, counterpart) === presenter) savedAssignments[counterpart.key] = '';
+      if (await ctx.setField('presenterAssignments', savedAssignments) === false) throw new Error('Draw stopped because an assignment could not be saved. Retry after checking storage.');
+      if (cancelled) return;
       const select = document.querySelector(`[data-assignment="${CSS.escape(topic.key)}"]`);
       if (select) select.value = presenter;
       const card = document.querySelector(`[data-assignment-card="${CSS.escape(topic.key)}"]`);
       card?.classList.add('just-drawn');
       await pause(360);
+      if (cancelled) return;
       card?.classList.remove('just-drawn');
     }
   }
 
-  rolling = false;
   ctx.showToast('Both presenter rounds were saved', 'success');
-  renderRandomizer(ctx);
+  } catch (error) { ctx.showToast(String(error), 'error'); }
+  finally {
+    if (!cancelled) { rolling = false; ctx.render(); }
+  }
 }
 
 const pause = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));

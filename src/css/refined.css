@@ -174,3 +174,56 @@ body.problem-reordering{cursor:grabbing;user-select:none}
 @media(max-width:1050px){.app-shell{display:block}.app-shell.sidebar-collapsed{display:block}.app-shell.sidebar-collapsed .sidebar{transform:translateX(-100%);opacity:1;pointer-events:auto}.main-shell{width:100%}.sidebar{width:252px}.page{padding:24px}}
 @media(max-width:700px){.highlight-footer{align-items:flex-start;flex-direction:column}.highlight-actions{width:100%;justify-content:space-between}.highlight-stage{min-height:260px;padding:8px}.timeline-builder{padding:18px 12px}.timeline-event-card{padding:17px 15px}.timeline-event-head{align-items:flex-start}.timeline-event-actions{align-items:flex-end;flex-direction:column-reverse}.timeline-color-palette{gap:5px}.timeline-color-dot{width:18px;height:18px}.term-grid{grid-template-columns:1fr}.objective-link-row{grid-template-columns:1fr;gap:7px}.objective-compact-links{align-items:stretch;flex-direction:column}.objective-link-picker{width:100%}}
 @media print{html,body,#app,.app-shell,.main-shell{height:auto;min-height:0;overflow:visible;position:static}}
+
+/* Flat, information-first application chrome. Retro keeps its period-specific UI. */
+html:not([data-theme="retro"]){--ui-radius:6px}
+html:not([data-theme="retro"]) body{font-size:15px;line-height:1.45}
+html:not([data-theme="retro"]) .app-shell{grid-template-columns:238px minmax(0,1fr)}
+html:not([data-theme="retro"]) .sidebar{box-shadow:1px 0 0 color-mix(in srgb,var(--sidebar-border) 72%,transparent)}
+html:not([data-theme="retro"]) .brand{gap:11px;padding:15px 17px}
+html:not([data-theme="retro"]) .brand-logo{width:39px;height:39px;border-radius:9px}
+html:not([data-theme="retro"]) .brand strong{font-size:19px;letter-spacing:-.015em}
+html:not([data-theme="retro"]) nav{padding:4px 9px}
+html:not([data-theme="retro"]) nav a,html:not([data-theme="retro"]) .settings-link{gap:10px;margin:2px 0;padding:9px 11px;border-radius:5px;font-size:13px;font-weight:600}
+html:not([data-theme="retro"]) nav a span,html:not([data-theme="retro"]) .settings-link span{width:20px;font-size:16px;opacity:.92}
+html:not([data-theme="retro"]) nav a.active{box-shadow:inset 2px 0 var(--primary-accent)}
+html:not([data-theme="retro"]) .nav-label{margin:18px 11px 7px;font-size:10px;letter-spacing:.14em}
+html:not([data-theme="retro"]) .settings-link{margin:auto 9px 12px;padding-top:11px}
+html:not([data-theme="retro"]) .topbar{height:54px;padding:0 26px;gap:14px;box-shadow:none}
+html:not([data-theme="retro"]) .topbar-heading{gap:12px}
+html:not([data-theme="retro"]) .topbar h1{font-size:15px;font-weight:650}
+html:not([data-theme="retro"]) .topbar-section{min-height:auto;padding:0 0 0 12px;border:0;border-left:1px solid var(--border-color);border-radius:0;background:transparent;color:var(--text-muted);font-size:12px;font-weight:600}
+html:not([data-theme="retro"]) .topbar-actions .button{min-height:34px;padding:7px 12px}
+html:not([data-theme="retro"]) .icon-button{width:36px;height:36px;border-radius:var(--ui-radius)}
+html:not([data-theme="retro"]) .page{width:100%;max-width:1440px;padding:26px 30px 42px}
+html:not([data-theme="retro"]) .page-header{align-items:center;margin-bottom:19px;padding-bottom:16px;border-bottom:1px solid var(--border-color)}
+html:not([data-theme="retro"]) .page-header h2{margin-bottom:4px;font-size:24px;font-weight:720;letter-spacing:-.025em}
+html:not([data-theme="retro"]) .page-header p{font-size:13px;line-height:1.45}
+html:not([data-theme="retro"]) .card{padding:19px;border-radius:var(--ui-radius);box-shadow:none}
+html:not([data-theme="retro"]) .card+.card{margin-top:14px}
+html:not([data-theme="retro"]) .section-title{margin-bottom:13px;font-size:16px}
+html:not([data-theme="retro"]) .button{min-height:36px;padding:8px 13px;border-radius:var(--ui-radius);font-size:13px;font-weight:700;transition:background-color .12s ease,border-color .12s ease,color .12s ease,opacity .12s ease}
+html:not([data-theme="retro"]) .button:hover{filter:none}
+html:not([data-theme="retro"]) .button-primary:hover{background:color-mix(in srgb,var(--primary-accent) 88%,#000)}
+html:not([data-theme="retro"]) .button-secondary:hover{border-color:var(--primary-accent);background:color-mix(in srgb,var(--button-soft) 76%,var(--bg-card))}
+html:not([data-theme="retro"]) .button:focus-visible,html:not([data-theme="retro"]) .lookup-source-button:focus-visible,html:not([data-theme="retro"]) nav a:focus-visible{outline:2px solid var(--primary-accent);outline-offset:2px}
+html:not([data-theme="retro"]) .input,html:not([data-theme="retro"]) .textarea,html:not([data-theme="retro"]) .select{border-radius:var(--ui-radius);padding:9px 11px;transition:border-color .12s ease,box-shadow .12s ease}
+html:not([data-theme="retro"]) .input:hover,html:not([data-theme="retro"]) .textarea:hover,html:not([data-theme="retro"]) .select:hover{border-color:color-mix(in srgb,var(--border-color) 48%,var(--text-muted))}
+html:not([data-theme="retro"]) .empty-state{padding:38px 18px}
+html:not([data-theme="retro"]) .empty-state p{margin:8px 0 0}
+html:not([data-theme="retro"]) .empty-icon{width:46px;height:46px;margin-bottom:12px;border-radius:50%;font-size:21px}
+html:not([data-theme="retro"]) .list-stack{gap:7px}
+html:not([data-theme="retro"]) .list-item{padding:10px 11px;border-radius:var(--ui-radius)}
+html:not([data-theme="retro"]) .list-item:hover{border-color:color-mix(in srgb,var(--primary-accent) 42%,var(--border-color))}
+html:not([data-theme="retro"]) .code-badge{min-width:32px;height:26px;border-radius:5px}
+html:not([data-theme="retro"]) .term-card,html:not([data-theme="retro"]) .objective-card,html:not([data-theme="retro"]) .assignment-card,html:not([data-theme="retro"]) .verification-problem,html:not([data-theme="retro"]) .timeline-event-card,html:not([data-theme="retro"]) .image-card{content-visibility:auto;contain-intrinsic-size:auto 180px}
+html:not([data-theme="retro"]) .term-card{padding:15px;border-radius:var(--ui-radius);background:var(--bg-card)}
+html:not([data-theme="retro"]) .term-card header{padding-bottom:9px}
+html:not([data-theme="retro"]) .term-definition{min-height:110px;background:var(--input-bg)}
+html:not([data-theme="retro"]) .objective-card,html:not([data-theme="retro"]) .assignment-card,html:not([data-theme="retro"]) .verification-problem{border-radius:var(--ui-radius)}
+html:not([data-theme="retro"]) .status-badge,html:not([data-theme="retro"]) .check-chip,html:not([data-theme="retro"]) .member-chip{border-radius:5px}
+html:not([data-theme="retro"]) .modal{border:1px solid var(--border-color);border-radius:8px}
+html:not([data-theme="retro"]) .modal-header{padding:13px 17px}
+html:not([data-theme="retro"]) .modal-body{padding:17px}
+html:not([data-theme="retro"]) .toast{border-radius:var(--ui-radius)}
+@media(max-width:1050px){html:not([data-theme="retro"]) .app-shell{display:block}html:not([data-theme="retro"]) .sidebar{width:238px}}

@@ -6,24 +6,37 @@ use uuid::Uuid;
 
 use crate::{commands::session::read_session, models::ImageMetadata, AppState};
 
+const MAX_IMAGE_BYTES: u64 = 50 * 1024 * 1024;
+
 #[tauri::command]
-pub fn pick_and_import_image(state: State<'_, AppState>) -> Result<ImageMetadata, String> {
-    let picked = rfd::FileDialog::new()
+pub async fn pick_and_import_image(state: State<'_, AppState>) -> Result<ImageMetadata, String> {
+    let picked = rfd::AsyncFileDialog::new()
         .add_filter(
             "Clinical images",
             &["png", "jpg", "jpeg", "webp", "bmp", "gif"],
         )
         .pick_file()
+        .await
         .ok_or_else(|| "canceled".to_string())?;
+    let picked = picked.path();
     let extension = picked
         .extension()
         .and_then(|value| value.to_str())
         .unwrap_or("png")
         .to_lowercase();
+    if !["png", "jpg", "jpeg", "webp", "bmp", "gif"].contains(&extension.as_str()) {
+        return Err("Choose a PNG, JPEG, WebP, BMP, or GIF image.".into());
+    }
+    let size = fs::metadata(picked)
+        .map_err(|error| format!("Could not inspect image: {error}"))?
+        .len();
+    if size == 0 || size > MAX_IMAGE_BYTES {
+        return Err("Choose an image between 1 byte and 50 MB.".into());
+    }
     let id = Uuid::new_v4().to_string();
     let filename = format!("{id}.{extension}");
     let destination = state.app_data_dir.join("images").join(&filename);
-    fs::copy(&picked, &destination).map_err(|error| format!("Could not import image: {error}"))?;
+    fs::copy(picked, &destination).map_err(|error| format!("Could not import image: {error}"))?;
 
     let image = ImageMetadata {
         id,

@@ -1,4 +1,5 @@
 import { API } from './api.js';
+import { createSaveQueue } from './save-queue.js';
 import { showToast } from './components/toast.js';
 import { esc } from './components/helpers.js';
 import { renderCase } from './pages/case.js';
@@ -6,7 +7,7 @@ import { renderTerms } from './pages/terms.js';
 import { renderTimeline } from './pages/timeline.js';
 import { renderProblems } from './pages/problems.js';
 import { renderObjectives } from './pages/objectives.js';
-import { renderRandomizer } from './pages/randomizer.js';
+import { renderRandomizer, buildDrawRounds, migrateAssignments } from './pages/randomizer.js';
 import { renderVerification } from './pages/verification.js';
 import { renderSettings } from './pages/settings.js';
 import { renderPrint } from './pages/print.js';
@@ -16,7 +17,9 @@ const routeLabels = { case: 'Case materials', terms: 'Clarifying terms', timelin
 const actOneRouteOrder = ['case', 'terms', 'timeline', 'problems', 'objectives'];
 let session;
 let members = [];
-let saveChain = Promise.resolve();
+const saves = createSaveQueue(API.saveField, error => showToast(`Could not save: ${error}`, 'error'));
+let resetting = false;
+let pageCleanup = [];
 const sidebarMedia = window.matchMedia('(max-width: 1050px)');
 let desktopSidebarOpen = localStorage.getItem('vibepbl-sidebar') !== 'closed';
 
@@ -27,18 +30,24 @@ function disableAutofill(root = document) {
   elements.forEach(element => element.setAttribute('autocomplete', 'off'));
 }
 
-new MutationObserver(records => {
-  records.forEach(record => record.addedNodes.forEach(node => {
-    if (node.nodeType === Node.ELEMENT_NODE) disableAutofill(node);
-  }));
-}).observe(document.documentElement, { childList: true, subtree: true });
-
 async function start() {
   try { [session, members] = await Promise.all([API.getSession(), API.getMembers()]); }
   catch (error) { document.getElementById('page').innerHTML = `<div class="card"><h2>Could not open local workspace</h2><p>${esc(String(error))}</p></div>`; return; }
+  // Migrate old main-topic keys before any link edits can change their meaning.
+  const rounds = buildDrawRounds(session);
+  const assignments = migrateAssignments(session.presenterAssignments, [...rounds.mainTopics, ...rounds.subtopics]);
+  if (JSON.stringify(assignments) !== JSON.stringify(session.presenterAssignments)) {
+    session.presenterAssignments = assignments;
+    queueSave('presenterAssignments', assignments, true);
+  }
+  disableAutofill(document);
   applyTheme(); render();
   setupWindowControls();
   setupSidebar();
+  window.addEventListener('blur', () => saves.flush().catch(() => {}));
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) saves.flush().catch(() => {});
+  });
   window.addEventListener('hashchange', render);
   document.querySelectorAll('[data-quick-print]').forEach(button => button.addEventListener('click', () => API.openPrintWindow()));
   document.querySelector('[data-browser-back]')?.addEventListener('click', () => moveThroughActOne(-1));
@@ -84,6 +93,17 @@ function syncSidebar() {
 function setupWindowControls() {
   const appWindow = window.__TAURI__?.window?.getCurrentWindow?.();
   if (!appWindow) return;
+  let closing = false;
+  appWindow.onCloseRequested(async event => {
+    if (closing || resetting) { event.preventDefault(); return; }
+    closing = true;
+    document.getElementById('app').inert = true;
+    pageCleanup.splice(0).forEach(cleanup => cleanup());
+    // Tauri awaits this handler, then destroys the window unless prevented.
+    try { await saves.flush(); }
+    catch (error) { event.preventDefault(); showToast(String(error), 'error'); render(); }
+    finally { closing = false; document.getElementById('app').inert = false; }
+  }).catch(error => showToast(`Could not protect unsaved changes on close: ${error}`, 'error'));
   document.getElementById('window-minimize').addEventListener('click', () => appWindow.minimize());
   document.getElementById('window-maximize').addEventListener('click', () => appWindow.toggleMaximize());
   document.getElementById('window-close').addEventListener('click', () => appWindow.close());
@@ -94,6 +114,7 @@ function setupWindowControls() {
 
 function currentRoute() { return location.hash.replace(/^#\//, '').split('/')[0] || 'case'; }
 function render() {
+  pageCleanup.splice(0).forEach(cleanup => cleanup());
   const route = currentRoute();
   document.body.classList.toggle('print-preview-mode', route === 'print');
   document.querySelectorAll('[data-route]').forEach(link => link.classList.toggle('active', link.dataset.route === route));
@@ -108,7 +129,21 @@ function render() {
 function context() {
   return {
     session, members, API, showToast, render,
+    onDispose(cleanup) { pageCleanup.push(cleanup); },
+    flushSaves: () => saves.flush(),
+    async resetSession() {
+      if (resetting) return;
+      resetting = true;
+      document.getElementById('app').inert = true;
+      try {
+        await saves.flush();
+        await API.resetSession();
+        session = await API.getSession();
+        applyTheme(); render();
+      } finally { resetting = false; document.getElementById('app').inert = false; }
+    },
     setField(field, value, immediate = true) {
+      if (resetting) return Promise.resolve(false);
       session[field] = value;
       if (field === 'theme') applyTheme();
       if (field === 'title') document.getElementById('session-title').textContent = value;
@@ -119,16 +154,9 @@ function context() {
   };
 }
 
-let debounceTimers = new Map();
 function queueSave(field, value, immediate) {
   const databaseField = ({ caseText:'case_text', caseImages:'case_images', presenterAssignments:'presenter_assignments', isAct1Completed:'is_act1_completed' })[field] || field;
-  const execute = () => {
-    saveChain = saveChain.catch(() => {}).then(() => API.saveField(databaseField, value));
-    return saveChain.catch(error => { showToast(`Could not save: ${error}`, 'error'); });
-  };
-  clearTimeout(debounceTimers.get(field));
-  if (immediate) return execute();
-  debounceTimers.set(field, setTimeout(execute, 600));
+  return saves.enqueue(databaseField, value, immediate);
 }
 
 function applyTheme() { document.documentElement.dataset.theme = session.theme || 'default'; }

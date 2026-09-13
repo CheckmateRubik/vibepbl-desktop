@@ -1,10 +1,12 @@
 node_modules/
 **/node_modules/
 **/target/
+src-tauri/target-validation/
 src-tauri/gen/
 
 # Local build and repair artifacts
 .npm-repair-backup/
+.tmp-mesh/
 rustup-init.exe
 *.pbl.json
 *.dmg*

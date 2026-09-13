@@ -2,13 +2,14 @@
   "name": "vibepbl-desktop",
   "private": true,
   "type": "module",
-  "version": "1.0.12",
+  "version": "2.0.0",
   "description": "Offline secretary workspace for medical PBL sessions",
   "scripts": {
     "tauri": "tauri",
     "dev": "tauri dev",
     "build": "tauri build --no-bundle",
     "check:js": "node scripts/check-js.mjs",
+    "test": "node scripts/test-randomizer.mjs && node scripts/test-regressions.mjs",
     "check:native": "node scripts/smoke-native.mjs"
   },
   "devDependencies": {
