@@ -143,6 +143,10 @@ body.problem-reordering{cursor:grabbing;user-select:none}
 .hypothesis-entry{margin-top:4px}
 .status-prioritized{color:var(--primary-accent);border-color:var(--primary-accent);background:var(--button-soft)}
 .hypothesis-row.status-prioritized{border-left-color:var(--primary-accent)}
+.status-edited{color:var(--primary-accent);border-color:var(--primary-accent);background:var(--button-soft)}
+.hypothesis-row.status-edited{border-left-color:var(--primary-accent)}
+.status-added{color:var(--status-confirmed-text);border-color:var(--status-confirmed-border);background:var(--status-confirmed-bg)}
+.hypothesis-row.status-added{border-left-color:var(--status-confirmed-border)}
 .print-report .status.prioritized{color:#125bd6;border-color:#125bd6;background:#edf4ff}
 .draw-queue-round+.draw-queue-round{margin-top:18px;padding-top:16px;border-top:1px solid var(--border-color)}
 .draw-queue-round h4{margin:0 0 10px;font-size:13px;color:var(--primary-accent)}

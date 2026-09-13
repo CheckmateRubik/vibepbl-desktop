@@ -3,6 +3,7 @@ import { createSaveQueue } from '../src/js/save-queue.js';
 import { normalizeLinks } from '../src/js/pages/objectives.js';
 import { buildDrawRounds, createTwoRoundAssignments, currentAssignment, migrateAssignments } from '../src/js/pages/randomizer.js';
 import { orderProblemsByIds } from '../src/js/pages/problems.js';
+import { validationAfterEdit, verificationState } from '../src/js/pages/verification.js';
 import { waitForPrintReady } from '../src/js/components/print-ready.js';
 
 const problems = [{id:'p1',text:'One'}, {id:'p2',text:'Two'}];
@@ -19,6 +20,10 @@ assert.equal(reordered.mainTopics[1].key,rounds.mainTopics[1].key);
 assert.equal(currentAssignment({new:'',old:'Old presenter'}, {key:'new',legacyKey:'old'}),'');
 assert.deepEqual(migrateAssignments({old:'Alice'},[{key:'new',legacyKey:'old'}]),{new:'Alice'});
 assert.deepEqual(orderProblemsByIds(problems,['p2','p2','missing']).map(item=>item.id),['p2','p1']);
+assert.deepEqual(verificationState({validation:'edited'}),{state:'edited',type:'edited',label:'Edited',canJudge:false});
+assert.deepEqual(verificationState({validation:'added'}),{state:'added',type:'added',label:'Added new',canJudge:false});
+assert.equal(validationAfterEdit('wrong'),'edited');
+assert.equal(validationAfterEdit('added'),'added');
 const largeRounds = {
   mainTopics:Array.from({length:10000},(_,number)=>({key:`m${number}`,number})),
   subtopics:Array.from({length:10000},(_,number)=>({key:`s${number}`,number}))

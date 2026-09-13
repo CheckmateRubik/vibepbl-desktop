@@ -166,6 +166,17 @@ try {
   if (!routeResults.problems.text.includes('Prioritize') || routeResults.problems.text.includes('Correct') || routeResults.problems.text.includes('Wrong') || routeResults.problems.text.includes('Investigating') || !routeResults.verification.text.includes('Wrong') || routeResults.verification.text.includes('Investigating')) throw new Error('Act 1 priority and Act 2 verification states were not separated.');
   if (!routeResults.randomizer.text.includes(testMemberName) || !routeResults.randomizer.text.includes('Round 1') || !routeResults.randomizer.text.includes('Round 2') || !routeResults.objectives.text.includes('เปรียบเทียบสาเหตุของอาการหายใจลำบาก')) throw new Error('Thai two-round assignment or objective mapping did not render.');
 
+  await evaluate(client, `location.hash = '#/verification'`);
+  await delay(180);
+  await evaluate(client, `(() => { document.querySelector('[data-edit-hypothesis]').click(); const field=document.querySelector('#modal-form textarea'); field.value='แก้ไขการติดเชื้อในปอด'; document.querySelector('#modal-form').requestSubmit(); })()`);
+  await delay(120);
+  const editedVerification = await evaluate(client, `({ labels:[...document.querySelectorAll('.verification-body .status-badge')].map(item=>item.textContent.trim()), editableStatuses:document.querySelectorAll('[data-cycle-status]').length })`);
+  if (editedVerification.labels[0] !== 'Edited' || editedVerification.editableStatuses !== 0) throw new Error(`Edited verification status failed: ${JSON.stringify(editedVerification)}`);
+  await evaluate(client, `(() => { document.querySelector('[data-add-revised]').click(); const field=document.querySelector('#modal-form textarea'); field.value='ภาวะน้ำท่วมปอด'; document.querySelector('#modal-form').requestSubmit(); })()`);
+  await delay(120);
+  const addedVerification = await evaluate(client, `({ labels:[...document.querySelectorAll('.verification-body .status-badge')].map(item=>item.textContent.trim()), editableStatuses:document.querySelectorAll('[data-cycle-status]').length })`);
+  if (addedVerification.labels.at(-1) !== 'Added new' || addedVerification.editableStatuses !== 0) throw new Error(`Added verification status failed: ${JSON.stringify(addedVerification)}`);
+
   await evaluate(client, `location.hash = '#/terms'`);
   await delay(180);
   const termEntry = await evaluate(client, `(() => { const input=document.getElementById('term-input'); input.value='หัวใจเต้นเร็ว'; input.dispatchEvent(new KeyboardEvent('keydown',{ key:'Enter', bubbles:true })); return { modal:Boolean(document.querySelector('.modal-backdrop')) }; })()`);
