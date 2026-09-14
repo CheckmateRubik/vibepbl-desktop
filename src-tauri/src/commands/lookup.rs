@@ -78,6 +78,15 @@ impl Provider {
 const RESPONSE_CACHE_SECONDS: i64 = 30 * 24 * 60 * 60;
 const LEARNED_TERMS_SECONDS: i64 = 180 * 24 * 60 * 60;
 
+fn response_cache_seconds(provider: Provider) -> i64 {
+    match provider {
+        // MedlinePlus is an online overview service. Refresh it regularly instead of
+        // keeping an old provider response for a month.
+        Provider::Medline => 24 * 60 * 60,
+        Provider::Mesh => RESPONSE_CACHE_SECONDS,
+    }
+}
+
 fn bundled_mesh_response(
     app_state: &AppState,
     query: &str,
@@ -218,7 +227,7 @@ fn read_persistent_response(
     provider: Provider,
     query: &str,
 ) -> Result<Option<LookupResponse>, String> {
-    let cutoff = chrono::Utc::now().timestamp() - RESPONSE_CACHE_SECONDS;
+    let cutoff = chrono::Utc::now().timestamp() - response_cache_seconds(provider);
     let connection = app_state.db.lock().map_err(|_| "Lookup is busy")?;
     let response_json: Option<String> = connection
         .query_row(
@@ -229,11 +238,17 @@ fn read_persistent_response(
         )
         .optional()
         .map_err(|_| "Could not read the local medical cache")?;
-    response_json
+    let response = response_json
         .map(|json| {
-            serde_json::from_str(&json).map_err(|_| "The local medical cache was unreadable".into())
+            serde_json::from_str(&json)
+                .map_err(|_| "The local medical cache was unreadable".to_string())
         })
-        .transpose()
+        .transpose()?;
+    // Older builds persisted valid-but-empty MedlinePlus responses. Treat them as
+    // cache misses so a temporary outage cannot leave Health overview blank.
+    Ok(response.filter(|response: &LookupResponse| {
+        provider != Provider::Medline || !response.results.is_empty()
+    }))
 }
 
 fn learned_response(
@@ -482,7 +497,7 @@ LIMIT {limit}"#
     Ok(url)
 }
 
-fn parse_medline(body: &str) -> Result<Vec<LookupResult>, String> {
+fn parse_medline(body: &str, query: &str) -> Result<Vec<LookupResult>, String> {
     let document = roxmltree::Document::parse(body)
         .map_err(|_| "MedlinePlus returned an unreadable response.")?;
     if !document.root_element().has_tag_name("nlmSearchResult") {
@@ -491,29 +506,58 @@ fn parse_medline(body: &str) -> Result<Vec<LookupResult>, String> {
     Ok(document
         .descendants()
         .filter(|node| node.has_tag_name("health-topic"))
-        .take(10)
         .filter_map(|node| {
-            let title = node.attribute("title")?.to_string();
-            let url = node.attribute("url")?.to_string();
-            let parsed = reqwest::Url::parse(&url).ok()?;
-            if parsed.scheme() != "https" || parsed.host_str() != Some("medlineplus.gov") {
+            let title = node.attribute("title")?.trim().to_string();
+            if title.is_empty() {
                 return None;
             }
-            let summary = node
+            let url = node.attribute("url")?.to_string();
+            let parsed = reqwest::Url::parse(&url).ok()?;
+            if parsed.scheme() != "https"
+                || !matches!(
+                    parsed.host_str(),
+                    Some("medlineplus.gov" | "www.medlineplus.gov")
+                )
+            {
+                return None;
+            }
+            let full_summary = node
                 .children()
-                .find(|child| child.has_tag_name("full-summary"))?
-                .text()?
-                .to_string();
+                .find(|child| child.has_tag_name("full-summary"))
+                .and_then(|child| child.text())
+                .map(str::trim)
+                .filter(|summary| !summary.is_empty());
+            let (summary, plain_text) = if let Some(summary) = full_summary {
+                (summary.to_string(), false)
+            } else {
+                let description = node.attribute("meta-desc")?.trim();
+                if description.is_empty() {
+                    return None;
+                }
+                (description.to_string(), true)
+            };
+            let normalized_query = normalized(query);
+            let normalized_title = normalized(&title);
+            let match_kind = if normalized_query == normalized_title {
+                "exact"
+            } else if normalized_title.starts_with(&normalized_query)
+                || normalized_query.starts_with(&normalized_title)
+            {
+                "partial"
+            } else {
+                "related"
+            };
             Some(LookupResult {
                 title,
                 summary,
                 url,
                 source: "MedlinePlus.gov — National Library of Medicine".into(),
-                plain_text: false,
+                plain_text,
                 matched_term: String::new(),
-                match_kind: "related".into(),
+                match_kind: match_kind.into(),
             })
         })
+        .take(10)
         .collect())
 }
 
@@ -781,8 +825,11 @@ pub async fn search_terminology(
             .entries
             .retain(|_, (time, _)| time.elapsed() < Duration::from_secs(12 * 3600));
         if let Some((_, response)) = cache.entries.get(&key) {
-            return Ok(response.clone());
+            if provider != Provider::Medline || !response.results.is_empty() {
+                return Ok(response.clone());
+            }
         }
+        cache.entries.remove(&key);
     }
     if let Some(response) = read_persistent_response(&app_state, provider, &query)? {
         let mut cache = state.cache.lock().map_err(|_| "Lookup is busy")?;
@@ -800,12 +847,14 @@ pub async fn search_terminology(
             return Ok(response);
         }
     }
-    if let Some(response) = learned_response(&app_state, provider, &query)? {
-        let mut cache = state.cache.lock().map_err(|_| "Lookup is busy")?;
-        cache
-            .entries
-            .insert(key, (Instant::now(), response.clone()));
-        return Ok(response);
+    if provider == Provider::Mesh {
+        if let Some(response) = learned_response(&app_state, provider, &query)? {
+            let mut cache = state.cache.lock().map_err(|_| "Lookup is busy")?;
+            cache
+                .entries
+                .insert(key, (Instant::now(), response.clone()));
+            return Ok(response);
+        }
     }
     {
         let mut cache = state.cache.lock().map_err(|_| "Lookup is busy")?;
@@ -818,9 +867,20 @@ pub async fn search_terminology(
         }
         cache.last_request.insert(provider, Instant::now());
     }
-    let body = fetch_text(&state.client, url).await?;
+    let body = match fetch_text(&state.client, url).await {
+        Ok(body) => body,
+        Err(error) if provider == Provider::Medline => {
+            // A learned overview is a fallback for an outage, not a substitute for
+            // refreshing the online MedlinePlus service when it is available.
+            if let Some(response) = learned_response(&app_state, provider, &query)? {
+                return Ok(response);
+            }
+            return Err(error);
+        }
+        Err(error) => return Err(error),
+    };
     let results = match provider {
-        Provider::Medline => parse_medline(&body)?,
+        Provider::Medline => parse_medline(&body, &query)?,
         Provider::Mesh => {
             let direct = parse_mesh(&body, &query)?;
             if direct.is_empty() {
@@ -836,7 +896,9 @@ pub async fn search_terminology(
         results,
         retrieved_at: chrono::Utc::now().to_rfc3339(),
     };
-    write_persistent_response(&app_state, provider, &query, &result)?;
+    if !result.results.is_empty() {
+        write_persistent_response(&app_state, provider, &query, &result)?;
+    }
     let mut cache = state.cache.lock().map_err(|_| "Lookup is busy")?;
     if cache.entries.len() >= 80 {
         if let Some(oldest) = cache
@@ -848,7 +910,9 @@ pub async fn search_terminology(
             cache.entries.remove(&oldest);
         }
     }
-    cache.entries.insert(key, (Instant::now(), result.clone()));
+    if !result.results.is_empty() {
+        cache.entries.insert(key, (Instant::now(), result.clone()));
+    }
     Ok(result)
 }
 
@@ -872,11 +936,22 @@ mod tests {
     #[test]
     fn summaries_not_third_party_articles_are_returned() {
         let xml = r#"<nlmSearchResult><health-topic title="Example" url="https://medlineplus.gov/example.html"><full-summary>&lt;p&gt;Test summary&lt;/p&gt;</full-summary><site url="https://elsewhere.example" title="Licensed article"/></health-topic></nlmSearchResult>"#;
-        let results = parse_medline(xml).unwrap();
+        let results = parse_medline(xml, "Example").unwrap();
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].summary, "<p>Test summary</p>");
-        assert!(parse_medline("<html/>").is_err());
-        assert!(parse_medline("not XML").is_err());
+        assert_eq!(results[0].match_kind, "exact");
+        assert!(parse_medline("<html/>", "example").is_err());
+        assert!(parse_medline("not XML", "example").is_err());
+    }
+
+    #[test]
+    fn medline_uses_meta_description_when_full_summary_is_missing() {
+        let xml = r#"<nlmSearchResult><health-topic title="Asthma" meta-desc="A useful health overview." url="https://www.medlineplus.gov/asthma.html"/></nlmSearchResult>"#;
+        let results = parse_medline(xml, "asth").unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].summary, "A useful health overview.");
+        assert!(results[0].plain_text);
+        assert_eq!(results[0].match_kind, "partial");
     }
 
     #[test]
@@ -990,6 +1065,23 @@ mod tests {
             .expect("search learned terms")
             .expect("nearby cached term");
         assert_eq!(nearby.results[0].title, "Atrial Fibrillation");
+
+        let empty_medline = LookupResponse {
+            results: Vec::new(),
+            retrieved_at: chrono::Utc::now().to_rfc3339(),
+        };
+        write_persistent_response(
+            &app_state,
+            Provider::Medline,
+            "temporary outage",
+            &empty_medline,
+        )
+        .expect("write legacy empty response");
+        assert!(
+            read_persistent_response(&app_state, Provider::Medline, "temporary outage")
+                .expect("read empty MedlinePlus response")
+                .is_none()
+        );
         drop(app_state);
         std::fs::remove_dir_all(directory).expect("remove cache test directory");
     }
